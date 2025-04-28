@@ -1,0 +1,102 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.input-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.plot-container {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    border: 2px solid #333;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+#plot {
+    position: absolute;
+    background-color: #e8f5e9;
+    border: 1px solid #2e7d32;
+}
+
+.building {
+    position: absolute;
+    background-color: rgba(66, 165, 245, 0.7);
+    border: 1px solid #1565c0;
+    cursor: move;
+    z-index: 10;
+}
+
+.distance-line {
+    position: absolute;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.control-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+select, input, button {
+    padding: 8px;
+    margin: 5px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover {
+    background-color: #388e3c;
+}
+
+.side-control {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+}
+
+.side-control label {
+    width: 100px;
+}
+
+.building-controls {
+    display: none;
+    background-color: #e3f2fd;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.building-info {
+    position: absolute;
+    background-color: white;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    z-index: 20;
+    display: none;
+}
