@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Планирование участка в СНТ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Планирование участка в СНТ</h1>
+    
+    <div class="input-section">
+        <h2>Размер участка</h2>
+        <div>
+            <label for="plot-width">Ширина участка (м):</label>
+            <input type="number" id="plot-width" min="1" value="20">
+            
+            <label for="plot-length">Длина участка (м):</label>
+            <input type="number" id="plot-length" min="1" value="30">
+            
+            <button id="create-plot">Создать участок</button>
+        </div>
+    </div>
+    
+    <div id="plot-controls" class="input-section" style="display: none;">
+        <h2>Границы участка</h2>
+        <div class="controls">
+            <div class="control-group">
+                <h3>Северная сторона</h3>
+                <select id="north-side">
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <h3>Восточная сторона</h3>
+                <select id="east-side">
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <h3>Южная сторона</h3>
+                <select id="south-side">
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <h3>Западная сторона</h3>
+                <select id="west-side">
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div id="building-section" class="input-section" style="display: none;">
+        <h2>Добавление построек</h2>
+        <div>
+            <label for="building-type">Тип постройки:</label>
+            <select id="building-type">
+                <option value="house">Дом</option>
+                <option value="garage">Гараж</option>
+                <option value="banya">Баня</option>
+                <option value="shed">Сарай</option>
+                <option value="toilet">Туалет</option>
+                <option value="well">Колодец</option>
+                <option value="borehole">Скважина</option>
+                <option value="boiler">Котельная</option>
+                <option value="gazebo">Беседка</option>
+                <option value="veranda">Веранда</option>
+                <option value="parking">Парковка</option>
+            </select>
+            
+            <div id="building-size-controls" class="building-controls">
+                <label for="building-width">Ширина (см):</label>
+                <input type="number" id="building-width" min="1" value="500">
+                
+                <label for="building-length">Длина (см):</label>
+                <input type="number" id="building-length" min="1" value="600">
+                
+                <button id="create-building">Создать постройку</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="plot-container">
+        <div id="plot"></div>
+        <!-- Здесь будут появляться постройки -->
+    </div>
+    
+    <div id="rules-info" style="display: none;">
+        <h2>Нормативы расстояний</h2>
+        <p>Согласно правилам СНТ в РФ:</p>
+        <ul>
+            <li>Дом должен быть не ближе 3 м от границы с соседним участком</li>
+            <li>Хозпостройки (гараж, баня, сарай) - не ближе 1 м</li>
+            <li>Туалет, компостные ямы - не ближе 8 м от дома и 12 м от колодца</li>
+            <li>Колодец должен быть не ближе 8 м от туалета и компостных ям</li>
+            <li>Минимальное расстояние между деревянными постройками - 15 м</li>
+            <li>От дома до бани - не менее 8 м</li>
+        </ul>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
