@@ -117,34 +117,43 @@ select option[disabled] {
     font-weight: bold;
     color: #333;
     font-size: 14px;
+    box-sizing: border-box;
+    border: 1px dashed rgba(0, 0, 0, 0.3);
 }
 
+/* Верхняя граница */
 .north-border {
-    top: 0;
-    left: 0;
-    width: 100%;
+    top: calc(var(--plot-top) - 30px);
+    left: var(--plot-left);
+    width: var(--plot-width);
     height: 30px;
 }
 
+/* Правая граница */
 .east-border {
-    top: 0;
-    right: 0;
+    top: var(--plot-top);
+    left: calc(var(--plot-left) + var(--plot-width));
     width: 30px;
-    height: 100%;
+    height: var(--plot-height);
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
 }
 
+/* Нижняя граница */
 .south-border {
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    top: calc(var(--plot-top) + var(--plot-height));
+    left: var(--plot-left);
+    width: var(--plot-width);
     height: 30px;
 }
 
+/* Левая граница */
 .west-border {
-    top: 0;
-    left: 0;
+    top: var(--plot-top);
+    left: calc(var(--plot-left) - 30px);
     width: 30px;
-    height: 100%;
+    height: var(--plot-height);
+    writing-mode: vertical-rl;
 }
 
 /* Цвета для разных типов границ */

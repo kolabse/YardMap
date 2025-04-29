@@ -58,6 +58,8 @@ function createPlot() {
     document.querySelectorAll('#north-side, #east-side, #south-side, #west-side').forEach(select => {
         select.addEventListener('change', updatePlotBorders);
     });
+    
+    updatePlotBorders(); // Инициализируем границы при создании участка
 }
 
 // Показываем элементы управления для выбранной постройки
@@ -406,6 +408,19 @@ function getBuildingName(type) {
 function updatePlotBorders() {
     // Удаляем старые границы
     document.querySelectorAll('.plot-border').forEach(el => el.remove());
+    
+    // Получаем позицию и размеры участка
+    const plotStyle = window.getComputedStyle(plotElement);
+    const plotLeft = parseInt(plotStyle.left);
+    const plotTop = parseInt(plotStyle.top);
+    const plotWidth = parseInt(plotStyle.width);
+    const plotHeight = parseInt(plotStyle.height);
+    
+    // Устанавливаем CSS переменные
+    plotContainer.style.setProperty('--plot-left', plotLeft + 'px');
+    plotContainer.style.setProperty('--plot-top', plotTop + 'px');
+    plotContainer.style.setProperty('--plot-width', plotWidth + 'px');
+    plotContainer.style.setProperty('--plot-height', plotHeight + 'px');
     
     // Получаем выбранные значения границ
     const northType = document.getElementById('north-side').value;
