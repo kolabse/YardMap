@@ -367,6 +367,11 @@ function createDistanceLine(x1, y1, x2, y2, actualDistance, requiredDistance) {
 
 // Получение требуемого расстояния между типами построек
 function getRequiredDistance(type1, type2) {
+    // Если хотя бы один объект - парковка, минимальное расстояние 0м
+    if (type1 === 'parking' || type2 === 'parking') {
+        return 0;
+    }
+
     // Дом и другие постройки
     if ((type1 === 'house' || type2 === 'house')) {
         if (type1 === 'toilet' || type2 === 'toilet') return 8;
