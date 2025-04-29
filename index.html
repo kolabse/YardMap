@@ -28,24 +28,7 @@
             <div class="control-group">
                 <h3>Северная сторона</h3>
                 <select id="north-side">
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor" selected>Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3>Восточная сторона</h3>
-                <select id="east-side">
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor" selected>Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3>Южная сторона</h3>
-                <select id="south-side">
+                    <option value="" selected disabled>Выбрать</option>
                     <option value="road">Дорога</option>
                     <option value="forest">Лес</option>
                     <option value="neighbor" selected>Соседний участок</option>
@@ -55,6 +38,28 @@
             <div class="control-group">
                 <h3>Западная сторона</h3>
                 <select id="west-side">
+                    <option value="" selected disabled>Выбрать</option>
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+        
+            <div class="control-group">
+                <h3>Южная сторона</h3>
+                <select id="south-side">
+                    <option value="" selected disabled>Выбрать</option>
+                    <option value="road">Дорога</option>
+                    <option value="forest">Лес</option>
+                    <option value="neighbor" selected>Соседний участок</option>
+                    <option value="ditch">Канава</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <h3>Восточная сторона</h3>
+                <select id="east-side">
+                    <option value="" selected disabled>Выбрать</option>
                     <option value="road">Дорога</option>
                     <option value="forest">Лес</option>
                     <option value="neighbor" selected>Соседний участок</option>
@@ -69,6 +74,7 @@
         <div>
             <label for="building-type">Тип постройки:</label>
             <select id="building-type">
+                <option value="" selected disabled>Выбрать</option>
                 <option value="house">Дом</option>
                 <option value="garage">Гараж</option>
                 <option value="banya">Баня</option>

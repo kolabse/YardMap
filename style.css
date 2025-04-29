@@ -100,3 +100,8 @@ button:hover {
     z-index: 20;
     display: none;
 }
+
+select option[disabled] {
+    color: #999;
+    font-style: italic;
+}

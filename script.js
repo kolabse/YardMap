@@ -61,6 +61,13 @@ function showBuildingControls() {
 // Создание постройки
 function createBuilding() {
     const type = document.getElementById('building-type').value;
+
+    // Проверяем, что тип выбран
+    if (!type) {
+        alert('Пожалуйста, выберите тип постройки');
+        return;
+    }
+
     const width = parseInt(document.getElementById('building-width').value) / 100; // переводим в метры
     const length = parseInt(document.getElementById('building-length').value) / 100;
     
