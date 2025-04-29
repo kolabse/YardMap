@@ -33,6 +33,8 @@ body {
     position: absolute;
     background-color: #e8f5e9;
     border: 1px solid #2e7d32;
+    left: var(--plot-left);
+    top: var(--plot-top);
 }
 
 .building {
@@ -41,6 +43,12 @@ body {
     border: 1px solid #1565c0;
     cursor: move;
     z-index: 10;
+    transition: transform 0.2s ease;
+}
+
+.building:hover {
+    transform: scale(1.02);
+    z-index: 15;
 }
 
 .distance-line {
@@ -126,13 +134,14 @@ select option[disabled] {
     font-size: 14px;
     box-sizing: border-box;
     border: 1px dashed rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 5px rgba(0,0,0,0.2); /* Добавим тень для лучшей видимости */
 }
 
 /* Верхняя граница */
 .north-border {
     top: calc(var(--plot-top) - var(--border-thickness));
-    left: calc(var(--plot-left));
-    width: calc(var(--plot-width) - 1px);
+    left: var(--plot-left);
+    width: var(--plot-width);
     height: var(--border-thickness);
 }
 
@@ -157,7 +166,7 @@ select option[disabled] {
 /* Левая граница */
 .west-border {
     top: var(--plot-top);
-    left: calc(var(--plot-left) - var(--border-thickness) - 1px);
+    left: calc(var(--plot-left) - var(--border-thickness));
     width: var(--border-thickness);
     height: var(--plot-height);
     writing-mode: vertical-rl;
@@ -180,14 +189,28 @@ select option[disabled] {
     background-color: rgba(0, 191, 255, 0.3); /* голубой для канавы */
 }
 
+@media (min-height: 1000px) {
+    .plot-container {
+        height: 800px; /* Большая высота для высоких экранов */
+    }
+}
+
 @media (max-height: 800px) {
     .plot-container {
         height: 500px; /* Меньшая высота для небольших экранов */
     }
 }
 
-@media (min-height: 1000px) {
+@media (max-width: 768px) {
     .plot-container {
-        height: 800px; /* Большая высота для высоких экранов */
+        height: 500px;
+    }
+    
+    .controls {
+        flex-direction: column;
+    }
+    
+    .control-group {
+        min-width: 100%;
     }
 }
