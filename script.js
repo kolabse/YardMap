@@ -31,35 +31,39 @@ function createPlot() {
         return;
     }
     
-    // Рассчет масштаба для вписывания в увеличенный контейнер
-    const containerWidth = plotContainer.offsetWidth - 4;
-    const containerHeight = plotContainer.offsetHeight - 4;
+    // Учитываем отступы при расчете масштаба
+    const containerWidth = plotContainer.clientWidth; // Учитывает padding
+    const containerHeight = plotContainer.clientHeight;
     
-    // Увеличиваем максимальный масштаб для больших участков
+    const availableWidth = containerWidth - 80; // 40px с каждой стороны
+    const availableHeight = containerHeight - 80;
+    
     scaleFactor = Math.min(
-        containerWidth / plotWidth,
-        containerHeight / plotLength
-    ) * 0.95; // Увеличили коэффициент заполнения с 0.9 до 0.95
+        availableWidth / plotWidth,
+        availableHeight / plotLength
+    ) * 0.9;
     
     // Создание элемента участка
     plotElement = document.getElementById('plot');
     plotElement.style.width = (plotWidth * scaleFactor) + 'px';
     plotElement.style.height = (plotLength * scaleFactor) + 'px';
     
-    // Центрирование на увеличенной области
-    plotElement.style.left = (containerWidth - plotWidth * scaleFactor) / 2 + 'px';
-    plotElement.style.top = (containerHeight - plotLength * scaleFactor) / 2 + 'px';
-    
-    // Показываем дополнительные элементы управления
-    plotControls.style.display = 'block';
-    buildingSection.style.display = 'block';
-    rulesInfo.style.display = 'block';
+    // Центрирование с учетом отступов
+    plotElement.style.left = '40px';
+    plotElement.style.top = '40px';
+   
+
 
     document.querySelectorAll('#north-side, #east-side, #south-side, #west-side').forEach(select => {
         select.addEventListener('change', updatePlotBorders);
     });
 
     updatePlotBorders(); // Инициализируем границы при создании участка
+
+        // Показываем дополнительные элементы управления
+        plotControls.style.display = 'block';
+        buildingSection.style.display = 'block';
+        rulesInfo.style.display = 'block';
 }
 
 // Показываем элементы управления для выбранной постройки
@@ -411,32 +415,74 @@ function updatePlotBorders() {
     
     if (!plotElement) return;
     
-    const plotRect = plotElement.getBoundingClientRect();
-    const containerRect = plotContainer.getBoundingClientRect();
-    
-    // Рассчитываем относительные координаты
-    const plotLeft = plotRect.left - containerRect.left;
-    const plotTop = plotRect.top - containerRect.top;
-    const plotWidth = plotRect.width;
-    const plotHeight = plotRect.height;
+    // Получаем текущие размеры и позицию участка
+    const plotLeft = plotElement.offsetLeft;
+    const plotTop = plotElement.offsetTop;
+    const plotWidth = plotElement.offsetWidth;
+    const plotHeight = plotElement.offsetHeight;
     
     // Устанавливаем CSS переменные
     plotContainer.style.setProperty('--plot-left', plotLeft + 'px');
     plotContainer.style.setProperty('--plot-top', plotTop + 'px');
     plotContainer.style.setProperty('--plot-width', plotWidth + 'px');
     plotContainer.style.setProperty('--plot-height', plotHeight + 'px');
+    plotContainer.style.setProperty('--border-thickness', '30px');
     
-    // Получаем выбранные значения границ
+    // Получаем выбранные типы границ
     const northType = document.getElementById('north-side').value;
     const eastType = document.getElementById('east-side').value;
     const southType = document.getElementById('south-side').value;
     const westType = document.getElementById('west-side').value;
     
-    // Создаем элементы границ
+    // Создаем границы с учетом толщины
     if (northType) createBorder('north', northType);
     if (eastType) createBorder('east', eastType);
     if (southType) createBorder('south', southType);
     if (westType) createBorder('west', westType);
+    
+    // Проверяем, чтобы границы не выходили за пределы контейнера
+    adjustBordersPosition();
+}
+
+function checkBordersPosition() {
+    const borders = document.querySelectorAll('.plot-border');
+    borders.forEach(border => {
+        const rect = border.getBoundingClientRect();
+        const containerRect = plotContainer.getBoundingClientRect();
+        
+        // Корректируем позицию, если граница выходит за пределы
+        if (rect.left < containerRect.left) {
+            border.style.left = '0';
+            border.style.width = (parseInt(border.style.width) + (containerRect.left - rect.left)) + 'px';
+        }
+        if (rect.top < containerRect.top) {
+            border.style.top = '0';
+            border.style.height = (parseInt(border.style.height) + (containerRect.top - rect.top)) + 'px';
+        }
+    });
+}
+
+function adjustBordersPosition() {
+    const borders = document.querySelectorAll('.plot-border');
+    const containerRect = plotContainer.getBoundingClientRect();
+    const borderThickness = 30;
+
+    borders.forEach(border => {
+        const rect = border.getBoundingClientRect();
+        
+        // Корректировка для левой границы
+        if (border.classList.contains('west-border')) {
+            const newLeft = Math.max(containerRect.left, rect.left);
+            border.style.left = (newLeft - containerRect.left - 1) + 'px'; // Учитываем сдвиг
+        }
+        
+        // Корректировка для верхней границы
+        if (border.classList.contains('north-border')) {
+            const newTop = Math.max(containerRect.top, rect.top);
+            border.style.top = (newTop - containerRect.top) + 'px';
+         //   border.style.left = '-1px'; // Дополнительный сдвиг
+        }
+    });
 }
 
 function createBorder(side, type) {

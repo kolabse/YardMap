@@ -1,3 +1,8 @@
+:root {
+    --border-margin: 40px;
+    --border-thickness: 30px;
+}
+
 body {
     font-family: Arial, sans-serif;
     max-width: 1200px;
@@ -15,11 +20,13 @@ body {
 .plot-container {
     position: relative;
     width: 100%;
-    height: 700px; /* Увеличили с 500px до 700px */
+    height: 700px;
     border: 2px solid #333;
     margin-bottom: 20px;
     overflow: hidden;
-    background-color: #f9f9f9; /* Добавим светлый фон для контейнера */
+    background-color: #f9f9f9;
+    padding: var(--border-margin); /* Добавляем отступы внутри контейнера */
+    box-sizing: border-box;
 }
 
 #plot {
@@ -123,40 +130,36 @@ select option[disabled] {
 
 /* Верхняя граница */
 .north-border {
-    top: var(--plot-top);
-    left: var(--plot-left);
-    width: var(--plot-width);
-    height: 30px;
-    transform: translateY(-100%);
+    top: calc(var(--plot-top) - var(--border-thickness));
+    left: calc(var(--plot-left));
+    width: calc(var(--plot-width) - 1px);
+    height: var(--border-thickness);
 }
 
 /* Правая граница */
 .east-border {
     top: var(--plot-top);
-    left: var(--plot-left);
-    width: 30px;
+    left: calc(var(--plot-left) + var(--plot-width) - 1px);
+    width: var(--border-thickness);
     height: var(--plot-height);
-    transform: translateX(var(--plot-width));
     writing-mode: vertical-rl;
-    transform: translateX(var(--plot-width)) rotate(180deg);
+    transform: rotate(180deg);
 }
 
 /* Нижняя граница */
 .south-border {
-    top: var(--plot-top);
-    left: var(--plot-left);
-    width: var(--plot-width);
-    height: 30px;
-    transform: translateY(var(--plot-height));
+    top: calc(var(--plot-top) + var(--plot-height));
+    left: calc(var(--plot-left));
+    width: calc(var(--plot-width) - 1px);
+    height: var(--border-thickness);
 }
 
 /* Левая граница */
 .west-border {
     top: var(--plot-top);
-    left: var(--plot-left);
-    width: 30px;
+    left: calc(var(--plot-left) - var(--border-thickness) - 1px);
+    width: var(--border-thickness);
     height: var(--plot-height);
-    transform: translateX(-100%);
     writing-mode: vertical-rl;
 }
 
