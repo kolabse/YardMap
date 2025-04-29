@@ -9,6 +9,24 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+// Цвета для разных типов построек
+const buildingColors = {
+    'house': 'rgba(66, 165, 245, 0.7)',
+    'garage': 'rgba(169, 169, 169, 0.7)',
+    'banya': 'rgba(244, 67, 54, 0.7)',
+    'shed': 'rgba(255, 193, 7, 0.7)',
+    'toilet': 'rgba(233, 30, 99, 0.7)',
+    'well': 'rgba(0, 188, 212, 0.7)',
+    'borehole': 'rgba(0, 150, 136, 0.7)',
+    'boiler': 'rgba(156, 39, 176, 0.7)',
+    'gazebo': 'rgba(76, 175, 80, 0.7)',
+    'veranda': 'rgba(205, 220, 57, 0.7)',
+    'parking': 'rgba(96, 125, 139, 0.7)'
+};
+
+// Счетчик построек по типам
+const buildingCounts = {};
+
 // Элементы DOM
 const plotContainer = document.querySelector('.plot-container');
 const plotControls = document.getElementById('plot-controls');
@@ -20,6 +38,7 @@ const rulesInfo = document.getElementById('rules-info');
 document.getElementById('create-plot').addEventListener('click', createPlot);
 document.getElementById('building-type').addEventListener('change', showBuildingControls);
 document.getElementById('create-building').addEventListener('click', createBuilding);
+document.addEventListener('DOMContentLoaded', updateBuildingsLegend);
 
 // Создание участка
 function createPlot() {
@@ -60,10 +79,11 @@ function createPlot() {
 
     updatePlotBorders(); // Инициализируем границы при создании участка
 
-        // Показываем дополнительные элементы управления
-        plotControls.style.display = 'block';
-        buildingSection.style.display = 'block';
-        rulesInfo.style.display = 'block';
+    // Показываем дополнительные элементы управления
+    plotControls.style.display = 'block';
+    buildingSection.style.display = 'block';
+    rulesInfo.style.display = 'block';
+    document.getElementById('building-section').style.display = 'block';
 }
 
 // Показываем элементы управления для выбранной постройки
@@ -81,6 +101,10 @@ function createBuilding() {
         return;
     }
 
+    // Обновляем счетчик
+    buildingCounts[type] = (buildingCounts[type] || 0) + 1;
+    updateBuildingsLegend();
+
     const width = parseInt(document.getElementById('building-width').value) / 100; // переводим в метры
     const length = parseInt(document.getElementById('building-length').value) / 100;
     
@@ -95,6 +119,8 @@ function createBuilding() {
     building.dataset.type = type;
     building.dataset.width = width;
     building.dataset.length = length;
+    building.style.backgroundColor = buildingColors[type];
+    building.style.borderColor = buildingColors[type].replace('0.7', '1');
     
     // Рассчет размеров в пикселях
     const pixelWidth = width * scaleFactor;
@@ -495,4 +521,40 @@ function createBorder(side, type) {
     
     border.textContent = labels[type];
     plotContainer.appendChild(border);
+}
+
+function updateBuildingsLegend() {
+    const legendContent = document.getElementById('legend-content');
+    legendContent.innerHTML = '';
+    
+    for (const [type, color] of Object.entries(buildingColors)) {
+        const count = buildingCounts[type] || 0;
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.dataset.type = type;
+        item.innerHTML = `
+            <div class="legend-color" style="background-color: ${color}; border-color: ${color.replace('0.7', '1')}"></div>
+            <div class="legend-name">${getBuildingName(type)}</div>
+            <div class="legend-count">${count}</div>
+        `;
+        
+        // Добавляем обработчик для выделения построек
+        item.addEventListener('click', () => highlightBuildings(type));
+        
+        legendContent.appendChild(item);
+    }
+}
+
+function highlightBuildings(type) {
+    // Снимаем выделение со всех построек
+    document.querySelectorAll('.building').forEach(b => {
+        b.style.boxShadow = 'none';
+    });
+    
+    // Выделяем постройки выбранного типа
+    if (type) {
+        document.querySelectorAll(`.building[data-type="${type}"]`).forEach(b => {
+            b.style.boxShadow = `0 0 0 2px ${buildingColors[type].replace('0.7', '1')}`;
+        });
+    }
 }

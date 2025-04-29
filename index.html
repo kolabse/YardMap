@@ -69,40 +69,53 @@
         </div>
     </div>
     
-    <div id="building-section" class="input-section" style="display: none;">
-        <h2>Добавление построек</h2>
-        <div>
-            <label for="building-type">Тип постройки:</label>
-            <select id="building-type">
-                <option value="" selected disabled>Выбрать</option>
-                <option value="house">Дом</option>
-                <option value="garage">Гараж</option>
-                <option value="banya">Баня</option>
-                <option value="shed">Сарай</option>
-                <option value="toilet">Туалет</option>
-                <option value="well">Колодец</option>
-                <option value="borehole">Скважина</option>
-                <option value="boiler">Котельная</option>
-                <option value="gazebo">Беседка</option>
-                <option value="veranda">Веранда</option>
-                <option value="parking">Парковка</option>
-            </select>
-            
-            <div id="building-size-controls" class="building-controls">
-                <label for="building-width">Ширина (см):</label>
-                <input type="number" id="building-width" min="1" value="500">
-                
-                <label for="building-length">Длина (см):</label>
-                <input type="number" id="building-length" min="1" value="600">
-                
-                <button id="create-building">Создать постройку</button>
+    <div class="main-container">
+        <div class="left-column">
+            <div id="building-section" class="input-section" style="display: none;">
+                <h2>Добавление построек</h2>
+                <div>
+                    <label for="building-type">Тип постройки:</label>
+                    <select id="building-type">
+                        <option value="" selected disabled>Выбрать</option>
+                        <option value="house">Дом</option>
+                        <option value="garage">Гараж</option>
+                        <option value="banya">Баня</option>
+                        <option value="shed">Сарай</option>
+                        <option value="toilet">Туалет</option>
+                        <option value="well">Колодец</option>
+                        <option value="borehole">Скважина</option>
+                        <option value="boiler">Котельная</option>
+                        <option value="gazebo">Беседка</option>
+                        <option value="veranda">Веранда</option>
+                        <option value="parking">Парковка</option>
+                    </select>
+                    
+                    <div id="building-size-controls" class="building-controls">
+                        <label for="building-width">Ширина (см):</label>
+                        <input type="number" id="building-width" min="1" value="500">
+                        
+                        <label for="building-length">Длина (см):</label>
+                        <input type="number" id="building-length" min="1" value="600">
+                        
+                        <button id="create-building">Создать постройку</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <div class="plot-container">
-        <div id="plot"></div>
-        <!-- Здесь будут появляться постройки -->
+        
+        <div class="center-column">
+            <div class="plot-container">
+                <div id="plot"></div>
+            </div>
+        </div>
+        
+        <div class="right-column">
+            <div id="buildings-legend" class="input-section">
+                <h2>Легенда построек</h2>
+                <p>Кликните на тип постройки для выделения</p>
+                <div id="legend-content"></div>
+            </div>
+        </div>
     </div>
     
     <div id="rules-info" style="display: none;">
