@@ -199,7 +199,6 @@ function stopDrag() {
 }
 
 // Проверка расстояний
-// Проверка расстояний
 function checkDistances() {
     // Удаляем старые линии расстояний
     document.querySelectorAll('.distance-line').forEach(el => el.remove());
@@ -442,24 +441,6 @@ function updatePlotBorders() {
     
     // Проверяем, чтобы границы не выходили за пределы контейнера
     adjustBordersPosition();
-}
-
-function checkBordersPosition() {
-    const borders = document.querySelectorAll('.plot-border');
-    borders.forEach(border => {
-        const rect = border.getBoundingClientRect();
-        const containerRect = plotContainer.getBoundingClientRect();
-        
-        // Корректируем позицию, если граница выходит за пределы
-        if (rect.left < containerRect.left) {
-            border.style.left = '0';
-            border.style.width = (parseInt(border.style.width) + (containerRect.left - rect.left)) + 'px';
-        }
-        if (rect.top < containerRect.top) {
-            border.style.top = '0';
-            border.style.height = (parseInt(border.style.height) + (containerRect.top - rect.top)) + 'px';
-        }
-    });
 }
 
 function adjustBordersPosition() {
