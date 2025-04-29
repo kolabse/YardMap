@@ -7,64 +7,71 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Планирование участка в СНТ</h1>
-    
+    <h1>ПланДач</h1>
+    <h2>Планирование участка в СНТ</h2>
+
     <div class="input-section">
-        <h2>Размер участка</h2>
-        <div>
-            <label for="plot-width">Ширина участка (м):</label>
-            <input type="number" id="plot-width" min="1" value="20">
-            
-            <label for="plot-length">Длина участка (м):</label>
-            <input type="number" id="plot-length" min="1" value="30">
-            
-            <button id="create-plot">Создать участок</button>
-        </div>
-    </div>
+        <div class="plot-creation-row">
+            <!-- Блок создания участка -->
+            <div class="plot-size-controls">
+                <h2>Размер участка</h2>
+                <div>
+                    <label for="plot-width">Ширина (м):</label>
+                    <input type="number" id="plot-width" min="1" value="20">
+                    
+                    <label for="plot-length">Длина (м):</label>
+                    <input type="number" id="plot-length" min="1" value="30">
+                    
+                    <button id="create-plot">Создать участок</button>
+                </div>
+            </div>
     
-    <div id="plot-controls" class="input-section" style="display: none;">
-        <h2>Границы участка</h2>
-        <div class="controls">
-            <div class="control-group">
-                <h3>Северная сторона</h3>
-                <select id="north-side">
-                    <option value="" selected disabled>Выбрать</option>
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor">Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3>Западная сторона</h3>
-                <select id="west-side">
-                    <option value="" selected disabled>Выбрать</option>
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor">Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
-            </div>
-        
-            <div class="control-group">
-                <h3>Южная сторона</h3>
-                <select id="south-side">
-                    <option value="" selected disabled>Выбрать</option>
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor">Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3>Восточная сторона</h3>
-                <select id="east-side">
-                    <option value="" selected disabled>Выбрать</option>
-                    <option value="road">Дорога</option>
-                    <option value="forest">Лес</option>
-                    <option value="neighbor">Соседний участок</option>
-                    <option value="ditch">Канава</option>
-                </select>
+            <!-- Блок выбора границ (изначально скрыт) -->
+            <div id="plot-controls" class="plot-borders-controls">
+                <h2>Границы участка</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <h4>Северная сторона</h4>
+                        <select id="north-side">
+                            <option value="" selected disabled>Выбрать</option>
+                            <option value="road">Дорога</option>
+                            <option value="forest">Лес</option>
+                            <option value="neighbor">Соседний участок</option>
+                            <option value="ditch">Канава</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <h4>Западная сторона</h4>
+                        <select id="west-side">
+                            <option value="" selected disabled>Выбрать</option>
+                            <option value="road">Дорога</option>
+                            <option value="forest">Лес</option>
+                            <option value="neighbor">Соседний участок</option>
+                            <option value="ditch">Канава</option>
+                        </select>
+                    </div>
+                
+                    <div class="control-group">
+                        <h4>Южная сторона</h4>
+                        <select id="south-side">
+                            <option value="" selected disabled>Выбрать</option>
+                            <option value="road">Дорога</option>
+                            <option value="forest">Лес</option>
+                            <option value="neighbor">Соседний участок</option>
+                            <option value="ditch">Канава</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <h4>Восточная сторона</h4>
+                        <select id="east-side">
+                            <option value="" selected disabled>Выбрать</option>
+                            <option value="road">Дорога</option>
+                            <option value="forest">Лес</option>
+                            <option value="neighbor">Соседний участок</option>
+                            <option value="ditch">Канава</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

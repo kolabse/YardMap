@@ -262,6 +262,21 @@ select option[disabled] {
     min-width: 250px;
 }
 
+.plot-creation-row {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.plot-size-controls {
+    flex: 1;
+    min-width: 230px;
+}
+
+.plot-borders-controls {
+    flex: 4;
+}
+
 @media (min-height: 1000px) {
     .plot-container {
         height: 800px; /* Большая высота для высоких экранов */
@@ -275,6 +290,17 @@ select option[disabled] {
 }
 
 @media (max-width: 768px) {
+
+    .plot-creation-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .plot-size-controls,
+    .plot-borders-controls {
+        width: 100%;
+    }
+
     .plot-container {
         height: 500px;
     }

@@ -80,7 +80,6 @@ function createPlot() {
     updatePlotBorders(); // Инициализируем границы при создании участка
 
     // Показываем дополнительные элементы управления
-    plotControls.style.display = 'block';
     buildingSection.style.display = 'block';
     rulesInfo.style.display = 'block';
     document.getElementById('building-section').style.display = 'block';
