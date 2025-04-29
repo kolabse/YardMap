@@ -54,6 +54,10 @@ function createPlot() {
     plotControls.style.display = 'block';
     buildingSection.style.display = 'block';
     rulesInfo.style.display = 'block';
+
+    document.querySelectorAll('#north-side, #east-side, #south-side, #west-side').forEach(select => {
+        select.addEventListener('change', updatePlotBorders);
+    });
 }
 
 // Показываем элементы управления для выбранной постройки
@@ -397,4 +401,37 @@ function getBuildingName(type) {
         'parking': 'Парковка'
     };
     return names[type] || type;
+}
+
+function updatePlotBorders() {
+    // Удаляем старые границы
+    document.querySelectorAll('.plot-border').forEach(el => el.remove());
+    
+    // Получаем выбранные значения границ
+    const northType = document.getElementById('north-side').value;
+    const eastType = document.getElementById('east-side').value;
+    const southType = document.getElementById('south-side').value;
+    const westType = document.getElementById('west-side').value;
+    
+    // Создаем элементы границ
+    if (northType) createBorder('north', northType);
+    if (eastType) createBorder('east', eastType);
+    if (southType) createBorder('south', southType);
+    if (westType) createBorder('west', westType);
+}
+
+function createBorder(side, type) {
+    const border = document.createElement('div');
+    border.className = `plot-border ${side}-border border-${type}`;
+    
+    // Подписи для границ
+    const labels = {
+        road: 'Дорога',
+        forest: 'Лес',
+        neighbor: 'Сосед',
+        ditch: 'Канава'
+    };
+    
+    border.textContent = labels[type];
+    plotContainer.appendChild(border);
 }

@@ -107,6 +107,63 @@ select option[disabled] {
     font-style: italic;
 }
 
+.plot-border {
+    position: absolute;
+    z-index: 1;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #333;
+    font-size: 14px;
+}
+
+.north-border {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 30px;
+}
+
+.east-border {
+    top: 0;
+    right: 0;
+    width: 30px;
+    height: 100%;
+}
+
+.south-border {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30px;
+}
+
+.west-border {
+    top: 0;
+    left: 0;
+    width: 30px;
+    height: 100%;
+}
+
+/* Цвета для разных типов границ */
+.border-road {
+    background-color: rgba(139, 69, 19, 0.3); /* коричневый для дороги */
+}
+
+.border-forest {
+    background-color: rgba(34, 139, 34, 0.3); /* зеленый для леса */
+}
+
+.border-neighbor {
+    background-color: rgba(169, 169, 169, 0.3); /* серый для соседа */
+}
+
+.border-ditch {
+    background-color: rgba(0, 191, 255, 0.3); /* голубой для канавы */
+}
+
 @media (max-height: 800px) {
     .plot-container {
         height: 500px; /* Меньшая высота для небольших экранов */
