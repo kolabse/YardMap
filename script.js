@@ -49,7 +49,7 @@ function createPlot() {
     plotElement.style.height = (plotLength * scaleFactor) + 'px';
     
     // Центрирование с учетом отступов
-    plotElement.style.left = '40px';
+    plotElement.style.left = containerWidth / 2 - (plotWidth * scaleFactor) / 2 + 'px';
     plotElement.style.top = '40px';
    
 
