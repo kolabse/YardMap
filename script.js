@@ -107,7 +107,7 @@ function createBuilding() {
     const plotRect = plotElement.getBoundingClientRect();
     const containerRect = plotContainer.getBoundingClientRect();
     
-    building.style.left = (plotRect.right - containerRect.left + 20) + 'px';
+    building.style.left = (plotRect.right - containerRect.left + 40) + 'px';
     building.style.top = (plotRect.top - containerRect.top) + 'px';
     
     // Добавляем информацию о постройке
