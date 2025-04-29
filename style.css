@@ -15,10 +15,11 @@ body {
 .plot-container {
     position: relative;
     width: 100%;
-    height: 500px;
+    height: 700px; /* Увеличили с 500px до 700px */
     border: 2px solid #333;
     margin-bottom: 20px;
     overflow: hidden;
+    background-color: #f9f9f9; /* Добавим светлый фон для контейнера */
 }
 
 #plot {
@@ -104,4 +105,16 @@ button:hover {
 select option[disabled] {
     color: #999;
     font-style: italic;
+}
+
+@media (max-height: 800px) {
+    .plot-container {
+        height: 500px; /* Меньшая высота для небольших экранов */
+    }
+}
+
+@media (min-height: 1000px) {
+    .plot-container {
+        height: 800px; /* Большая высота для высоких экранов */
+    }
 }

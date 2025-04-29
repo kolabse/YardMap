@@ -31,19 +31,22 @@ function createPlot() {
         return;
     }
     
-    // Рассчет масштаба для вписывания в контейнер
-    const containerWidth = plotContainer.offsetWidth - 4; // минус бордюр
+    // Рассчет масштаба для вписывания в увеличенный контейнер
+    const containerWidth = plotContainer.offsetWidth - 4;
     const containerHeight = plotContainer.offsetHeight - 4;
     
-    const widthRatio = containerWidth / plotWidth;
-    const heightRatio = containerHeight / plotLength;
-    
-    scaleFactor = Math.min(widthRatio, heightRatio) * 0.9; // небольшой отступ
+    // Увеличиваем максимальный масштаб для больших участков
+    scaleFactor = Math.min(
+        containerWidth / plotWidth,
+        containerHeight / plotLength
+    ) * 0.95; // Увеличили коэффициент заполнения с 0.9 до 0.95
     
     // Создание элемента участка
     plotElement = document.getElementById('plot');
     plotElement.style.width = (plotWidth * scaleFactor) + 'px';
     plotElement.style.height = (plotLength * scaleFactor) + 'px';
+    
+    // Центрирование на увеличенной области
     plotElement.style.left = (containerWidth - plotWidth * scaleFactor) / 2 + 'px';
     plotElement.style.top = (containerHeight - plotLength * scaleFactor) / 2 + 'px';
     
