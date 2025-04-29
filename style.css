@@ -123,36 +123,40 @@ select option[disabled] {
 
 /* Верхняя граница */
 .north-border {
-    top: calc(var(--plot-top) - 30px);
+    top: var(--plot-top);
     left: var(--plot-left);
     width: var(--plot-width);
     height: 30px;
+    transform: translateY(-100%);
 }
 
 /* Правая граница */
 .east-border {
     top: var(--plot-top);
-    left: calc(var(--plot-left) + var(--plot-width));
+    left: var(--plot-left);
     width: 30px;
     height: var(--plot-height);
+    transform: translateX(var(--plot-width));
     writing-mode: vertical-rl;
-    transform: rotate(180deg);
+    transform: translateX(var(--plot-width)) rotate(180deg);
 }
 
 /* Нижняя граница */
 .south-border {
-    top: calc(var(--plot-top) + var(--plot-height));
+    top: var(--plot-top);
     left: var(--plot-left);
     width: var(--plot-width);
     height: 30px;
+    transform: translateY(var(--plot-height));
 }
 
 /* Левая граница */
 .west-border {
     top: var(--plot-top);
-    left: calc(var(--plot-left) - 30px);
+    left: var(--plot-left);
     width: 30px;
     height: var(--plot-height);
+    transform: translateX(-100%);
     writing-mode: vertical-rl;
 }
 

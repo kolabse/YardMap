@@ -58,7 +58,7 @@ function createPlot() {
     document.querySelectorAll('#north-side, #east-side, #south-side, #west-side').forEach(select => {
         select.addEventListener('change', updatePlotBorders);
     });
-    
+
     updatePlotBorders(); // Инициализируем границы при создании участка
 }
 
@@ -409,12 +409,16 @@ function updatePlotBorders() {
     // Удаляем старые границы
     document.querySelectorAll('.plot-border').forEach(el => el.remove());
     
-    // Получаем позицию и размеры участка
-    const plotStyle = window.getComputedStyle(plotElement);
-    const plotLeft = parseInt(plotStyle.left);
-    const plotTop = parseInt(plotStyle.top);
-    const plotWidth = parseInt(plotStyle.width);
-    const plotHeight = parseInt(plotStyle.height);
+    if (!plotElement) return;
+    
+    const plotRect = plotElement.getBoundingClientRect();
+    const containerRect = plotContainer.getBoundingClientRect();
+    
+    // Рассчитываем относительные координаты
+    const plotLeft = plotRect.left - containerRect.left;
+    const plotTop = plotRect.top - containerRect.top;
+    const plotWidth = plotRect.width;
+    const plotHeight = plotRect.height;
     
     // Устанавливаем CSS переменные
     plotContainer.style.setProperty('--plot-left', plotLeft + 'px');
