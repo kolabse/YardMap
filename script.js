@@ -186,6 +186,7 @@ function stopDrag() {
 }
 
 // Проверка расстояний
+// Проверка расстояний
 function checkDistances() {
     // Удаляем старые линии расстояний
     document.querySelectorAll('.distance-line').forEach(el => el.remove());
@@ -195,6 +196,10 @@ function checkDistances() {
     const plotRect = plotElement.getBoundingClientRect();
     const buildingRect = currentBuilding.getBoundingClientRect();
     const buildingData = buildings.find(b => b.element === currentBuilding);
+    
+    // Получаем позицию участка относительно контейнера
+    const plotOffsetLeft = plotElement.offsetLeft;
+    const plotOffsetTop = plotElement.offsetTop;
     
     // Проверяем расстояние до границ участка
     const leftDistance = (buildingRect.left - plotRect.left) / scaleFactor;
@@ -212,10 +217,10 @@ function checkDistances() {
     }
     
     // Проверяем и отображаем расстояние до границ
-    checkBorderDistance(leftDistance, 'left', minDistance);
-    checkBorderDistance(rightDistance, 'right', minDistance);
-    checkBorderDistance(topDistance, 'top', minDistance);
-    checkBorderDistance(bottomDistance, 'bottom', minDistance);
+    checkBorderDistance(leftDistance, 'left', minDistance, plotOffsetLeft, plotOffsetTop);
+    checkBorderDistance(rightDistance, 'right', minDistance, plotOffsetLeft, plotOffsetTop);
+    checkBorderDistance(topDistance, 'top', minDistance, plotOffsetLeft, plotOffsetTop);
+    checkBorderDistance(bottomDistance, 'bottom', minDistance, plotOffsetLeft, plotOffsetTop);
     
     // Проверяем расстояние до других построек
     buildings.forEach(otherBuilding => {
@@ -240,12 +245,19 @@ function checkDistances() {
             // Минимальное расстояние между этими типами построек
             let requiredDistance = getRequiredDistance(buildingData.type, otherBuilding.type);
             
+            // Координаты центров построек относительно контейнера
+            const currentCenterX = currentBuilding.offsetLeft + currentBuilding.offsetWidth/2;
+            const currentCenterY = currentBuilding.offsetTop + currentBuilding.offsetHeight/2;
+            
+            const otherCenterX = otherBuilding.element.offsetLeft + otherBuilding.element.offsetWidth/2;
+            const otherCenterY = otherBuilding.element.offsetTop + otherBuilding.element.offsetHeight/2;
+            
             // Создаем линию расстояния
             createDistanceLine(
-                buildingRect.left + buildingRect.width/2,
-                buildingRect.top + buildingRect.height/2,
-                otherRect.left + otherRect.width/2,
-                otherRect.top + otherRect.height/2,
+                currentCenterX,
+                currentCenterY,
+                otherCenterX,
+                otherCenterY,
                 distance,
                 requiredDistance
             );
@@ -254,33 +266,44 @@ function checkDistances() {
 }
 
 // Проверка расстояния до границы участка
-function checkBorderDistance(distance, side, minDistance) {
-    const plotRect = plotElement.getBoundingClientRect();
-    const buildingRect = currentBuilding.getBoundingClientRect();
+function checkBorderDistance(distance, side, minDistance, plotOffsetLeft, plotOffsetTop) {
+    const buildingRect = {
+        left: currentBuilding.offsetLeft,
+        right: currentBuilding.offsetLeft + currentBuilding.offsetWidth,
+        top: currentBuilding.offsetTop,
+        bottom: currentBuilding.offsetTop + currentBuilding.offsetHeight
+    };
+    
+    const plotRect = {
+        left: plotOffsetLeft,
+        right: plotOffsetLeft + plotElement.offsetWidth,
+        top: plotOffsetTop,
+        bottom: plotOffsetTop + plotElement.offsetHeight
+    };
     
     let x1, y1, x2, y2;
     
     switch (side) {
         case 'left':
             x1 = plotRect.left;
-            y1 = buildingRect.top + buildingRect.height/2;
+            y1 = buildingRect.top + currentBuilding.offsetHeight/2;
             x2 = buildingRect.left;
             y2 = y1;
             break;
         case 'right':
             x1 = buildingRect.right;
-            y1 = buildingRect.top + buildingRect.height/2;
+            y1 = buildingRect.top + currentBuilding.offsetHeight/2;
             x2 = plotRect.right;
             y2 = y1;
             break;
         case 'top':
-            x1 = buildingRect.left + buildingRect.width/2;
+            x1 = buildingRect.left + currentBuilding.offsetWidth/2;
             y1 = plotRect.top;
             x2 = x1;
             y2 = buildingRect.top;
             break;
         case 'bottom':
-            x1 = buildingRect.left + buildingRect.width/2;
+            x1 = buildingRect.left + currentBuilding.offsetWidth/2;
             y1 = buildingRect.bottom;
             x2 = x1;
             y2 = plotRect.bottom;
@@ -317,8 +340,8 @@ function createDistanceLine(x1, y1, x2, y2, actualDistance, requiredDistance) {
     const label = document.createElement('div');
     label.textContent = `${actualDistance.toFixed(1)}м (мин. ${requiredDistance}м)`;
     label.style.position = 'absolute';
-    label.style.left = midX + 'px';
-    label.style.top = midY + 'px';
+    label.style.left = '50%';
+    label.style.top = '50%';
     label.style.backgroundColor = 'white';
     label.style.padding = '2px 5px';
     label.style.borderRadius = '3px';
