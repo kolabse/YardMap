@@ -326,7 +326,7 @@ function createDistanceLine(x1, y1, x2, y2, actualDistance, requiredDistance) {
 // Получение требуемого расстояния между типами построек
 function getRequiredDistance(type1, type2) {
     // Дом и другие постройки
-    if ((type1 === 'house' || type2 === 'house') {
+    if ((type1 === 'house' || type2 === 'house')) {
         if (type1 === 'toilet' || type2 === 'toilet') return 8;
         if (type1 === 'banya' || type2 === 'banya') return 8;
         if (type1 === 'well' || type2 === 'well') return 8;
