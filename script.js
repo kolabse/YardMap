@@ -109,6 +109,16 @@ function createBuilding() {
     
     building.style.left = (plotRect.right - containerRect.left + 40) + 'px';
     building.style.top = (plotRect.top - containerRect.top) + 'px';
+
+    // Создаем контейнер для постройки и подсказки
+    const buildingContainer = document.createElement('div');
+    buildingContainer.className = 'building-container';
+    buildingContainer.style.position = 'absolute';
+    buildingContainer.style.left = (plotRect.right - containerRect.left + 20) + 'px';
+    buildingContainer.style.top = (plotRect.top - containerRect.top) + 'px';
+    
+    // Добавляем постройку в контейнер
+    buildingContainer.appendChild(building);
     
     // Добавляем информацию о постройке
     const infoDiv = document.createElement('div');

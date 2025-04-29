@@ -115,6 +115,18 @@ button:hover {
     font-size: 12px;
     z-index: 20;
     display: none;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 5px;
+    width: max-content;
+    max-width: 150px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.building-container {
+    position: absolute;
+    display: inline-block;
 }
 
 select option[disabled] {
