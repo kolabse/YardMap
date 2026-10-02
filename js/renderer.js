@@ -19,7 +19,7 @@
             this.onHighlight = onHighlight;
             this.onSelect = onSelect;
         }
-        render(project, selectedId, highlightedType) {
+        render(project, selectedId, highlightedType, viewState = api.createViewportState()) {
             const analysis = api.analyzePlacement(project);
             this.renderPlacementReport(project, analysis);
             this.plot.hidden = !project.plot;
@@ -31,7 +31,11 @@
                 document.getElementById('outside-warning').textContent = '';
                 this.renderLegend(project); return null;
             }
-            const view = api.createView(project.plot, this.container.clientWidth, this.container.clientHeight);
+            const view = api.viewForPlot(project.plot, this.container.clientWidth, this.container.clientHeight, viewState);
+            const gridPixels = viewState.step * view.scale;
+            this.plot.style.backgroundImage = viewState.gridVisible && gridPixels >= 4
+                ? 'linear-gradient(to right, #90a4ae66 1px, transparent 1px), linear-gradient(to bottom, #90a4ae66 1px, transparent 1px)' : 'none';
+            this.plot.style.backgroundSize = `${gridPixels}px ${gridPixels}px`;
             Object.assign(this.plot.style, {
                 width: project.plot.width * view.scale + 'px', height: project.plot.length * view.scale + 'px',
                 left: view.left + 'px', top: view.top + 'px'

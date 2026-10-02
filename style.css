@@ -19,6 +19,7 @@ body {
 }
 
 .plot-container {
+    overflow: hidden;
     position: relative;
     height: 700px;
     border: 2px solid #333;
@@ -26,6 +27,7 @@ body {
 }
 
 #plot {
+    background-origin: border-box;
     position: absolute;
     background-color: #e8f5e9;
     border: 1px solid #2e7d32;
@@ -74,6 +76,13 @@ body {
 .waiting-building { position: relative; }
 .waiting-caption { font-size: 12px; }
 .center-column { min-width: 0; }
+.view-controls { padding: 12px; background: white; margin-bottom: 12px; }
+.view-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.view-buttons button { width: auto; flex: 1; }
+.view-controls label { display: block; }
+.view-controls input[type="checkbox"] { width: auto; }
+.plot-container.pan-mode, .plot-container.pan-mode .building { cursor: grab; }
+button:disabled { opacity: 0.5; cursor: default; }
 .distance-label {
     background: white;
     padding: 2px 5px;

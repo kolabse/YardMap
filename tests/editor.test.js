@@ -143,6 +143,76 @@ function savedProject(text) {
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
 
+test('view controls zoom and pan without changing geometry, history or storage', () => {
+    const storage=memoryStorage(),app=editor({storage});app.add();app.place(4,5);
+    assert.equal(app.run('typeof changeZoom'),'function','zoom is available');
+    const before=JSON.stringify(app.state()),counts=app.run('JSON.stringify(history.counts())'),writes=storage.writes;
+    const scale=app.run('view.scale'),left=app.run('view.left');
+    app.run('changeZoom(2);panView(50,-30)');
+    assert.equal(app.run('view.scale'),scale*2);
+    assert.notEqual(app.run('view.left'),left);
+    assert.equal(JSON.stringify(app.state()),before);
+    assert.equal(app.run('JSON.stringify(history.counts())'),counts);assert.equal(storage.writes,writes);
+    app.run('fitView()');assert.equal(app.run('view.scale'),scale);assert.equal(app.run('view.left'),left);
+    app.place(8,9);assert.ok(Math.abs(app.state().objects[0].x-8)<1e-9);
+});
+
+test('view controls snap metre coordinates at different zooms and allow exact inputs', () => {
+    const app=editor();app.add();assert.equal(app.run('typeof applyViewSettings'),'function','snap is available');
+    app.get('grid-step').value='0.5';app.get('snap-enabled').checked=true;app.get('grid-visible').checked=true;
+    app.run('applyViewSettings();changeZoom(2);panView(-50,40)');app.place(4.26,5.24);
+    assert.equal(app.state().objects[0].x,4.5);assert.equal(app.state().objects[0].y,5);
+    app.get('object-x').value='4.125';app.get('object-y').value='5.375';app.run('applyObjectProperties()');
+    assert.equal(app.state().objects[0].x,4.125);
+    app.get('snap-enabled').checked=false;app.run('applyViewSettings();changeZoom(0.5)');app.place(7.125,8.375);
+    assert.ok(Math.abs(app.state().objects[0].x-7.125)<1e-9);
+});
+
+test('view controls grid follows metre scale and rejects invalid step without altering settings', () => {
+    const app=editor();assert.equal(app.run('typeof applyViewSettings'),'function','grid controls are available');
+    app.get('grid-step').value='2';app.get('grid-visible').checked=true;app.run('applyViewSettings()');
+    const size=app.get('plot').style.backgroundSize;
+    assert.equal(parseFloat(size),app.run('view.scale')*2);
+    app.run('changeZoom(2)');assert.equal(parseFloat(app.get('plot').style.backgroundSize),parseFloat(size)*2);
+    const before=app.run('JSON.stringify(viewState)');app.get('grid-step').value='0';app.run('applyViewSettings()');
+    assert.equal(app.run('JSON.stringify(viewState)'),before);assert.match(app.get('view-error').textContent,/шаг|Шаг/);
+    app.get('grid-step').value='2';app.get('grid-visible').checked=false;app.run('applyViewSettings()');
+    assert.equal(app.get('plot').style.backgroundImage,'none');
+});
+
+test('view controls distinguish pan gestures from object dragging and cancel transient movement', () => {
+    const app=editor();app.add();app.place(4,5);assert.equal(app.run('typeof startPan'),'function','pan mode is available');
+    const before=JSON.stringify(app.state()),original=app.run('view.left');
+    app.run(`viewState.panMode=true;startDrag({button:0,currentTarget:renderer.elements.get(selectedId),clientX:0,clientY:0,preventDefault(){}});
+        startPan({button:0,clientX:100,clientY:100,preventDefault(){}});movePan({clientX:130,clientY:120});stopPan()`);
+    assert.equal(app.run('activeDrag'),null);assert.equal(app.run('view.left'),original+30);
+    assert.equal(JSON.stringify(app.state()),before);
+    app.run('viewState.panMode=false');app.place(8,9);
+    const placed=JSON.stringify(app.state());
+    app.run(`startDrag({button:0,currentTarget:renderer.elements.get(selectedId),clientX:0,clientY:0,preventDefault(){}});drag({clientX:250,clientY:200});changeZoom(2)`);
+    assert.equal(JSON.stringify(app.state()),placed);assert.equal(app.run('activeDrag'),null);
+});
+
+test('snapped dragging preserves the grab offset of rotated objects at multiple scales', () => {
+    const app=editor();app.add();app.run('rotateSelectedObject()');
+    app.get('grid-step').value='0.5';app.get('snap-enabled').checked=true;app.run('applyViewSettings()');
+    for(const zoom of [0.5,2]) {
+        app.run(`fitView();changeZoom(${zoom});
+            el=renderer.elements.get(selectedId);r=el.getBoundingClientRect();
+            startDrag({button:0,currentTarget:el,clientX:r.left+r.width/2,clientY:r.top+r.height/2,preventDefault(){}});
+            size=YardMap.objectSize(selectedObject());target=YardMap.toScreen({x:4.12+size.width/2,y:5.38+size.length/2},view);
+            drag({clientX:target.x,clientY:target.y});stopDrag()`);
+        assert.equal(app.state().objects[0].x,4);assert.equal(app.state().objects[0].y,5.5);
+    }
+});
+
+test('pan mode prevents keyboard object movement as well as mouse dragging', () => {
+    const app=editor();app.add();app.place(4,5);const before=JSON.stringify(app.state());
+    app.run(`viewState.panMode=true;document.getElementById('object-move-step').value='1';
+        handleObjectKeyDown({key:'ArrowRight',target:{tagName:'DIV'},preventDefault(){}})`);
+    assert.equal(JSON.stringify(app.state()),before);
+});
+
 test('history undoes and redoes add, drag, rotation and deletion with saved state', () => {
     const storage=memoryStorage(),app=editor({storage});
     assert.equal(app.run('typeof undoAction'),'function','undo is available');

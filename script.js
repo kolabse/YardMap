@@ -8,6 +8,8 @@ let objectPanelDirty = false;
 const plotContainer = document.querySelector('.plot-container');
 const waitingArea = document.getElementById('waiting-area');
 let view = null;
+const viewState = YardMap.createViewportState();
+let activePan = null;
 let selectedId = null;
 let highlightedType = null;
 let activeDrag = null;
@@ -21,6 +23,20 @@ const renderer = new YardMap.Renderer(plotContainer, waitingArea, startDrag, hig
 
 document.getElementById('create-plot').addEventListener('click', createPlot);
 document.getElementById('create-building').addEventListener('click', createBuilding);
+document.getElementById('zoom-in').addEventListener('click',()=>changeZoom(1.25));
+document.getElementById('zoom-out').addEventListener('click',()=>changeZoom(0.8));
+document.getElementById('fit-view').addEventListener('click',fitView);
+document.getElementById('pan-mode').addEventListener('click',()=>{
+    cancelDrag();stopPan();viewState.panMode=!viewState.panMode;render();
+});
+for (const [id,dx,dy] of [['pan-left',-50,0],['pan-right',50,0],['pan-up',0,-50],['pan-down',0,50]]) {
+    document.getElementById(id).addEventListener('click',()=>panView(dx,dy));
+}
+document.getElementById('apply-view-settings').addEventListener('click',applyViewSettings);
+plotContainer.addEventListener('mousedown',startPan);
+document.getElementById('grid-step').value=String(viewState.step);
+document.getElementById('grid-visible').checked=viewState.gridVisible;
+document.getElementById('snap-enabled').checked=viewState.snapEnabled;
 document.getElementById('object-select').addEventListener('change',event=>selectObject(event.target.value));
 document.getElementById('apply-object-properties').addEventListener('click',applyObjectProperties);
 document.getElementById('rotate-object').addEventListener('click',rotateSelectedObject);
@@ -88,9 +104,9 @@ for (const side of ['north', 'east', 'south', 'west']) {
         if (project.plot) saveCommittedProject();
     });
 }
-window.addEventListener('resize', render);
-if (typeof ResizeObserver !== 'undefined') new ResizeObserver(render).observe(plotContainer);
-window.addEventListener('blur', cancelDrag);
+window.addEventListener('resize',resizeView);
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resizeView).observe(plotContainer);
+window.addEventListener('blur',()=>{cancelDrag();stopPan();});
 restoreSavedProject();
 history.reset(project);
 render();
@@ -98,7 +114,8 @@ render();
 function render() {
     renderHistory();
     renderVariants();
-    view = renderer.render(project, selectedId, highlightedType);
+    view = renderer.render(project, selectedId, highlightedType, viewState);
+    renderViewControls();
     renderObjectProperties();
     if (project.plot) {
         document.getElementById('create-plot').textContent = 'Изменить размеры';
@@ -135,6 +152,7 @@ function createPlot() {
     if (!dimensions) return;
     cancelDrag();
     YardMap.setPlot(project, ...dimensions);
+    viewState.zoom=1;viewState.panX=0;viewState.panY=0;
     // Borders can be selected before a plot exists; preserve these selections.
     for (const side of ['north', 'east', 'south', 'west']) {
         YardMap.setBorder(project, side, document.getElementById(`${side}-side`).value);
@@ -188,6 +206,7 @@ function confirmNewProject() {
 
 function startDrag(event) {
     if (event.button !== 0 || !view) return;
+    if (viewState.panMode) return;
     const id = event.currentTarget.dataset.id;
     const object = project.objects.find(item => item.id === id);
     if (!object) return;
@@ -214,7 +233,9 @@ function drag(event) {
         x: event.clientX - containerRect.left - (plotContainer.clientLeft || 0),
         y: event.clientY - containerRect.top - (plotContainer.clientTop || 0)
     }, view);
-    YardMap.placeObject(project, activeDrag.id, point.x - activeDrag.offsetX, point.y - activeDrag.offsetY);
+    const desired = { x: point.x - activeDrag.offsetX, y: point.y - activeDrag.offsetY };
+    const placed = viewState.snapEnabled ? YardMap.snapPoint(desired,viewState.step) : desired;
+    YardMap.placeObject(project, activeDrag.id, placed.x, placed.y);
     objectPanelDirty=false;
     render();
     if (!storageBlocked) showSaveStatus('dirty','Перемещение не сохранено. Отпустите мышь для сохранения.');
@@ -299,6 +320,7 @@ function confirmProjectImport() {
     document.getElementById('project-file-status').textContent = `Открыт проект «${project.name}».`;
 }
 function syncProjectFields() {
+    stopPan();viewState.zoom=1;viewState.panX=0;viewState.panY=0;
     objectPanelId = null; objectPanelDirty = false; cancelObjectDeletion();
     document.getElementById('project-name').value = project.name;
     document.getElementById('new-project-confirmation').hidden = true;
@@ -445,6 +467,52 @@ function confirmVariantDeletion() {
 }
 
 function selectedObject() { return project.objects.find(object=>object.id===selectedId); }
+function resizeView() { cancelDrag();stopPan();render(); }
+function renderViewControls() {
+    document.getElementById('zoom-in').disabled=!view || viewState.zoom>=YardMap.maxZoom;
+    document.getElementById('zoom-out').disabled=!view || viewState.zoom<=YardMap.minZoom;
+    for(const id of ['fit-view','pan-mode','pan-left','pan-right','pan-up','pan-down']) document.getElementById(id).disabled=!view;
+    document.getElementById('pan-mode').setAttribute('aria-pressed',String(viewState.panMode));
+    plotContainer.classList.toggle('pan-mode',viewState.panMode);
+    document.getElementById('view-status').textContent=view
+        ? `Масштаб: ${Number(view.scale.toFixed(2))} px/м (${Number((viewState.zoom*100).toFixed(1))}% общего вида). Участок: ${project.plot.width} × ${project.plot.length} м. Шаг: ${viewState.step} м.${viewState.gridVisible && viewState.step*view.scale<4?' Сетка слишком мелкая для этого масштаба; увеличьте вид.':''}`
+        : 'Создайте участок для управления видом.';
+}
+function changeZoom(factor) {
+    if (!view || !Number.isFinite(factor) || factor<=0)return;
+    cancelDrag();stopPan();
+    const next=Math.max(YardMap.minZoom,Math.min(YardMap.maxZoom,viewState.zoom*factor));
+    const ratio=next/viewState.zoom;
+    viewState.panX*=ratio;viewState.panY*=ratio;viewState.zoom=next;render();
+}
+function panView(dx,dy) {
+    if(!view || ![dx,dy].every(Number.isFinite))return;
+    cancelDrag();stopPan();viewState.panX+=dx;viewState.panY+=dy;render();
+}
+function fitView() {
+    cancelDrag();stopPan();viewState.zoom=1;viewState.panX=0;viewState.panY=0;render();
+}
+function applyViewSettings() {
+    try {
+        const step=Number(document.getElementById('grid-step').value);YardMap.validateGridStep(step);
+        cancelDrag();stopPan();viewState.step=step;
+        viewState.gridVisible=document.getElementById('grid-visible').checked;
+        viewState.snapEnabled=document.getElementById('snap-enabled').checked;
+        document.getElementById('view-error').textContent='';render();
+    } catch(error) { document.getElementById('view-error').textContent=error.message; }
+}
+function startPan(event) {
+    if(!view || !viewState.panMode || event.button!==0 || activePan)return;
+    cancelDrag();activePan={x:event.clientX,y:event.clientY,panX:viewState.panX,panY:viewState.panY};
+    document.addEventListener('mousemove',movePan);document.addEventListener('mouseup',stopPan);event.preventDefault();
+}
+function movePan(event) {
+    if(!activePan)return;
+    viewState.panX=activePan.panX+event.clientX-activePan.x;viewState.panY=activePan.panY+event.clientY-activePan.y;render();
+}
+function stopPan() {
+    activePan=null;document.removeEventListener('mousemove',movePan);document.removeEventListener('mouseup',stopPan);
+}
 function renderHistory() {
     const counts = history.counts();
     document.getElementById('undo-action').disabled = counts.undo === 0;
@@ -548,7 +616,7 @@ function confirmObjectDeletion() {
 }
 function handleObjectKeyDown(event) {
     const directions={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
-    if(!directions[event.key] || activeDrag || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)return;
+    if(!directions[event.key] || activeDrag || viewState.panMode || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)return;
     const target=event.target;
     if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(target?.tagName) || target?.isContentEditable)return;
     const object=selectedObject();if(!object || object.status!=='placed' || object.locked)return;
