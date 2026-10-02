@@ -10,13 +10,14 @@
         return value.toFixed(precision);
     }
     class Renderer {
-        constructor(container, waitingArea, onDrag, onHighlight) {
+        constructor(container, waitingArea, onDrag, onHighlight, onSelect) {
             this.container = container;
             this.waitingArea = waitingArea;
             this.plot = document.getElementById('plot');
             this.elements = new Map();
             this.onDrag = onDrag;
             this.onHighlight = onHighlight;
+            this.onSelect = onSelect;
         }
         render(project, selectedId, highlightedType) {
             const analysis = api.analyzePlacement(project);
@@ -48,6 +49,13 @@
                     element = document.createElement('div');
                     element.dataset.id = object.id;
                     element.addEventListener('mousedown', this.onDrag);
+                    element.addEventListener('click',()=>this.onSelect(object.id));
+                    element.addEventListener('focus',()=>this.onSelect(object.id));
+                    element.addEventListener('keydown',event=>{
+                        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.onSelect(object.id); }
+                    });
+                    element.setAttribute('role','button'); element.tabIndex=0;
+                    const label = document.createElement('span'); label.className='building-name'; element.appendChild(label);
                     this.elements.set(object.id, element);
                 }
                 const definition = api.definitions[object.type];
@@ -59,9 +67,13 @@
                     + (outside ? ' outside-building' : '')
                     + (analysis.invalidObjectIds.has(object.id) ? ' invalid-building' : '')
                     + (object.id === selectedId ? ' selected-building' : '');
+                if (object.locked) element.className += ' locked-building';
+                element.children[0].textContent = object.name;
+                element.setAttribute('aria-pressed',String(object.id === selectedId));
                 element.dataset.type = object.type;
                 element.title = `${object.name} ${object.width} × ${object.length} м`;
                 if (outside) element.title += ' — За границами участка';
+                if (object.locked) element.title += ' — Положение закреплено';
                 element.setAttribute('aria-label', element.title);
                 element.style.backgroundColor = definition.color;
                 element.style.borderColor = definition.color.replace('0.7', '1');
@@ -82,7 +94,7 @@
                     const position = api.toScreen(object, view);
                     element.style.left = position.x + 'px';
                     element.style.top = position.y + 'px';
-                    this.container.appendChild(element);
+                    if (element.parentElement !== this.container) this.container.appendChild(element);
                 }
                 element.style.zIndex = object.id === selectedId ? '100' : '10';
             }

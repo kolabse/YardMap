@@ -143,6 +143,78 @@ function savedProject(text) {
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
 
+test('placement coordinate drafts keep empty input until apply instead of replacing it with zero', () => {
+    const app=editor();app.add();
+    app.get('object-status').value='placed';app.get('object-status').listeners.change();
+    app.get('object-x').value='';app.get('object-x').listeners.input();
+    assert.equal(app.get('object-x').value,'');
+    const before=JSON.stringify(app.state());app.run('applyObjectProperties()');
+    assert.equal(JSON.stringify(app.state()),before);
+    assert.match(app.get('object-properties-error').textContent,/координаты/);
+});
+
+test('object properties select individual objects and apply exact geometry with live offsets', () => {
+    const app=editor();app.add();app.place(4,5);app.add();
+    assert.equal(app.run('typeof selectObject'),'function','individual object selection is available');
+    const id=app.state().objects[0].id;app.run(`selectObject(${JSON.stringify(id)})`);
+    assert.equal(app.get('object-name').value,'Дом');
+    app.get('object-name').value='Наш дом';app.get('object-width').value='5.25';app.get('object-length').value='6.5';
+    app.get('object-x').value='3.125';app.get('object-y').value='4.75';app.get('object-rotation').value='90';
+    app.run('applyObjectProperties()');
+    const object=app.state().objects[0];
+    assert.equal(object.name,'Наш дом');assert.equal(object.width,5.25);assert.equal(object.rotation,90);
+    assert.equal(object.x,3.125);assert.equal(object.y,4.75);
+    assert.match(app.get('object-offsets').textContent,/10.375/);
+    assert.equal(app.run('document.querySelectorAll(".selected-building").length'),1);
+    assert.equal(app.run('document.querySelectorAll(".building-name")[0].textContent'),'Наш дом');
+});
+test('object properties reject invalid edits atomically and synchronize after dragging', () => {
+    const app=editor();app.add();app.place(4,5);
+    assert.equal(app.run('typeof applyObjectProperties'),'function','validated property edits are available');
+    const before=JSON.stringify(app.state());app.get('object-width').value='0';app.get('object-x').value='12';
+    app.run('applyObjectProperties()');
+    assert.equal(JSON.stringify(app.state()),before);assert.match(app.get('object-properties-error').textContent,/положитель/);
+    app.place(8,9);
+    assert.ok(Math.abs(Number(app.get('object-x').value)-8)<1e-9);
+    assert.ok(Math.abs(Number(app.get('object-y').value)-9)<1e-9);
+});
+test('object properties rotate contours, copy with new identity and delete after confirmation', () => {
+    const app=editor();app.add();app.place(14,28);
+    assert.equal(app.run('typeof rotateSelectedObject'),'function','rotation is available');
+    const id=app.state().objects[0].id;app.run('rotateSelectedObject()');
+    assert.equal(app.state().objects[0].rotation,90);
+    assert.equal(app.run('YardMap.objectSize(project.objects[0]).width'),6);
+    app.run('copySelectedObject()');const copy=app.state().objects[1];
+    assert.notEqual(copy.id,id);assert.equal(copy.rotation,90);assert.equal(copy.status,'waiting');
+    app.run('requestObjectDeletion()');assert.equal(app.state().objects.length,2);
+    app.run('confirmObjectDeletion()');assert.equal(app.state().objects.length,1);
+    assert.equal(app.state().objects[0].id,id);assert.equal(app.run('selectedId'),null);
+});
+test('object properties lock position across drag, keyboard, JSON and reload', () => {
+    const storage=memoryStorage(),app=editor({storage});app.add();app.place(4,5);
+    assert.equal(app.run('typeof toggleObjectLock'),'function','position lock is available');
+    app.run('toggleObjectLock()');const before=JSON.stringify(app.state().objects[0]);
+    app.place(8,9);
+    app.run('handleObjectKeyDown({key:"ArrowRight",target:{tagName:"DIV"},preventDefault(){}})');
+    assert.equal(JSON.stringify(app.state().objects[0]),before);assert.equal(app.run('activeDrag'),null);
+    const restored=editor({storage,bootOnly:true});assert.equal(restored.state().objects[0].locked,true);
+    assert.equal(app.run('YardMap.parseProject(YardMap.serializeProject(project)).objects[0].locked'),true);
+    app.run('toggleObjectLock()');app.place(8,9);assert.ok(Math.abs(app.state().objects[0].x-8)<1e-9);
+});
+test('object properties keyboard uses visible metre step and ignores editing controls', () => {
+    const app=editor();app.add();app.place(4,5);
+    assert.equal(app.run('typeof handleObjectKeyDown'),'function','keyboard movement is available');
+    app.get('object-move-step').value='0.25';
+    const x=app.state().objects[0].x;
+    app.run('handleObjectKeyDown({key:"ArrowRight",target:{tagName:"INPUT"},preventDefault(){throw Error("must not intercept")}})');
+    assert.equal(app.state().objects[0].x,x);
+    app.run('handleObjectKeyDown({key:"ArrowRight",target:{tagName:"DIV"},preventDefault(){}})');
+    assert.equal(app.state().objects[0].x,x+0.25);
+    app.get('object-move-step').value='0';const before=JSON.stringify(app.state());
+    app.run('handleObjectKeyDown({key:"ArrowRight",target:{tagName:"DIV"},preventDefault(){}})');
+    assert.equal(JSON.stringify(app.state()),before);
+});
+
 test('variants copy independently, rename, switch and restore every layout on reload', () => {
     const storage=memoryStorage(),app=editor({storage}); app.add(); app.place(4,5);
     assert.equal(app.run('typeof copyVariant'),'function','copy variant action is available');
