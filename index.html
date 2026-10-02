@@ -9,13 +9,18 @@
 <body>
     <h1>ПланДач</h1>
     <h2>Планирование участка в СНТ</h2>
+    <nav class="quick-nav" aria-label="Разделы редактора">
+        <a href="#planner">План</a><a href="#object-panel">Свойства</a>
+        <a href="#catalog-panel">Добавить объект</a><a href="#file-panel">Сохранение</a>
+    </nav>
     <section class="input-section" aria-label="История изменений">
         <button id="undo-action" disabled>Отменить</button>
         <button id="redo-action" disabled>Повторить</button>
         <p id="history-status" role="status" aria-live="polite"></p>
         <p>Ctrl/Cmd+Z — отменить, Ctrl/Cmd+Shift+Z или Ctrl+Y — повторить. В полях ввода сочетания редактируют текст.</p>
     </section>
-    <section class="input-section" aria-label="Варианты планировки">
+    <details class="input-section" id="variants-panel">
+        <summary>Варианты планировки</summary>
         <label for="variant-select">Вариант планировки</label>
         <select id="variant-select"></select>
         <button id="create-variant">Новый вариант</button>
@@ -29,15 +34,15 @@
             <button id="confirm-delete-variant">Удалить выбранный вариант</button>
             <button id="cancel-delete-variant" class="secondary-button">Отмена</button>
         </div>
-    </section>
-    <section class="input-section" aria-label="Файл проекта">
+    </details>
+    <details class="input-section" id="file-panel">
+        <summary>Сохранение и открытие JSON</summary>
         <label for="project-name">Название варианта</label>
         <input id="project-name" type="text" maxlength="200" value="Мой участок">
         <button id="export-project">Скачать JSON</button>
         <label for="import-project">Открыть JSON</label>
         <input id="import-project" type="file" accept=".json,application/json">
         <p id="project-file-status" role="status" aria-live="polite"></p>
-        <p id="autosave-status" role="status" aria-live="polite"></p>
         <button id="retry-autosave" class="secondary-button" hidden>Повторить сохранение</button>
         <button id="replace-stored-project" class="secondary-button" hidden>Заменить сохранённую запись</button>
         <div id="storage-replacement-confirmation" class="confirmation-panel" hidden>
@@ -51,9 +56,11 @@
             <button id="confirm-import">Заменить текущий план</button>
             <button id="cancel-import" class="secondary-button">Отмена</button>
         </div>
-    </section>
+    </details>
+    <p id="autosave-status" role="status" aria-live="polite"></p>
 
-    <div class="input-section">
+    <details class="input-section" id="plot-settings" open>
+        <summary>Участок и границы</summary>
         <div class="plot-creation-row">
             <!-- Блок создания участка -->
             <div class="plot-size-controls">
@@ -126,12 +133,55 @@
                 </div>
             </div>
         </div>
-    </div>
+    </details>
     
     <div class="main-container">
+        <div class="center-column" id="planner">
+            <section class="view-controls" aria-label="Управление видом">
+                <div class="view-buttons">
+                    <button id="zoom-in" aria-label="Увеличить вид">+</button>
+                    <button id="zoom-out" aria-label="Уменьшить вид">−</button>
+                    <button id="fit-view">Показать весь участок</button>
+                    <button id="pan-mode" aria-pressed="false">Перемещать вид</button>
+                </div>
+                <div class="view-buttons" aria-label="Сдвиг вида">
+                    <button id="pan-left" aria-label="Сдвинуть вид влево">←</button>
+                    <button id="pan-up" aria-label="Сдвинуть вид вверх">↑</button>
+                    <button id="pan-down" aria-label="Сдвинуть вид вниз">↓</button>
+                    <button id="pan-right" aria-label="Сдвинуть вид вправо">→</button>
+                </div>
+                <details><summary>Сетка и подсказки управления</summary>
+                <label><input id="grid-visible" type="checkbox" checked> Показывать сетку</label>
+                <label><input id="snap-enabled" type="checkbox"> Привязка при переносе</label>
+                <label for="grid-step">Шаг сетки и привязки (м)</label>
+                <input id="grid-step" type="number" min="0.01" max="1000" step="any" value="1" aria-describedby="view-error">
+                <button id="apply-view-settings">Применить настройки сетки</button>
+                <p id="view-error" class="field-error" role="alert"></p>
+                <p>Потяните объект мышью или пальцем. В режиме «Перемещать вид» потяните план. Escape отменяет незавершённое движение. Координаты в свойствах задаются точно, без привязки.</p>
+                </details>
+                <p id="view-status" role="status"></p>
+                <p id="interaction-status" role="status" aria-live="polite"></p>
+            </section>
+            <div class="plot-container" role="region" aria-label="План участка">
+                <div id="plot"></div>
+            </div>
+            <p id="outside-warning" class="outside-warning" role="status" aria-live="polite"></p>
+            <section id="placement-report" class="placement-report" hidden>
+                <h3>Проверка размещения</h3>
+                <p id="placement-summary" role="status" aria-live="polite"></p>
+                <ul id="placement-issues"></ul>
+                <p>Отступы — предварительные настройки. Их источники и применимость ещё не проверены. Касание допустимо только при заданном отступе 0 м; перекрытие контуров считается ошибкой.</p>
+            </section>
+            <div id="waiting-section" style="display: none;">
+                <h3>Неразмещённые объекты</h3>
+                <p>Перетащите объект на участок. Объекты в этой области не участвуют в проверке расстояний.</p>
+                <div id="waiting-area"></div>
+            </div>
+        </div>
+
         <div class="left-column">
-            <section class="input-section" aria-label="Свойства объекта">
-                <h3>Свойства объекта</h3>
+            <details class="input-section" id="object-panel" open>
+                <summary>Свойства объекта</summary>
                 <label for="object-select">Объект</label>
                 <select id="object-select"></select>
                 <div id="object-properties" hidden>
@@ -157,9 +207,10 @@
                         <button id="cancel-delete-object" class="secondary-button">Отмена</button>
                     </div>
                 </div>
-            </section>
-            <div id="building-section" class="input-section" style="display: none;">
-                <h2>Добавление построек</h2>
+            </details>
+            <details id="catalog-panel" class="input-section">
+                <summary>Добавление построек</summary>
+                <div id="building-section" style="display: none;">
                 <div>
                     <label for="building-type">Тип постройки:</label>
                     <select id="building-type" aria-describedby="building-type-error">
@@ -190,47 +241,8 @@
                         <button id="create-building">Создать постройку</button>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="center-column">
-            <section class="view-controls" aria-label="Управление видом">
-                <div class="view-buttons">
-                    <button id="zoom-in" aria-label="Увеличить вид">+</button>
-                    <button id="zoom-out" aria-label="Уменьшить вид">−</button>
-                    <button id="fit-view">Показать весь участок</button>
-                    <button id="pan-mode" aria-pressed="false">Перемещать вид</button>
                 </div>
-                <div class="view-buttons" aria-label="Сдвиг вида">
-                    <button id="pan-left" aria-label="Сдвинуть вид влево">←</button>
-                    <button id="pan-up" aria-label="Сдвинуть вид вверх">↑</button>
-                    <button id="pan-down" aria-label="Сдвинуть вид вниз">↓</button>
-                    <button id="pan-right" aria-label="Сдвинуть вид вправо">→</button>
-                </div>
-                <label><input id="grid-visible" type="checkbox" checked> Показывать сетку</label>
-                <label><input id="snap-enabled" type="checkbox"> Привязка при переносе</label>
-                <label for="grid-step">Шаг сетки и привязки (м)</label>
-                <input id="grid-step" type="number" min="0.01" max="1000" step="any" value="1" aria-describedby="view-error">
-                <button id="apply-view-settings">Применить настройки сетки</button>
-                <p id="view-error" class="field-error" role="alert"></p>
-                <p id="view-status" role="status"></p>
-                <p>В режиме перемещения вида потяните план мышью. Для переноса объекта выключите этот режим. Координаты в свойствах задаются точно, без привязки.</p>
-            </section>
-            <div class="plot-container">
-                <div id="plot"></div>
-            </div>
-            <p id="outside-warning" class="outside-warning" role="status" aria-live="polite"></p>
-            <section id="placement-report" class="placement-report" hidden>
-                <h3>Проверка размещения</h3>
-                <p id="placement-summary" role="status" aria-live="polite"></p>
-                <ul id="placement-issues"></ul>
-                <p>Отступы — предварительные настройки. Их источники и применимость ещё не проверены. Касание допустимо только при заданном отступе 0 м; перекрытие контуров считается ошибкой.</p>
-            </section>
-            <div id="waiting-section" style="display: none;">
-                <h3>Неразмещённые объекты</h3>
-                <p>Перетащите объект на участок. Объекты в этой области не участвуют в проверке расстояний.</p>
-                <div id="waiting-area"></div>
-            </div>
+            </details>
         </div>
         
         <div class="right-column">

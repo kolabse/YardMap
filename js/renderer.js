@@ -29,7 +29,7 @@
                 document.querySelectorAll('.distance-line').forEach(element => element.remove());
                 document.querySelectorAll('.plot-border').forEach(element => element.remove());
                 document.getElementById('outside-warning').textContent = '';
-                this.renderLegend(project); return null;
+                this.renderLegend(project,highlightedType); return null;
             }
             const view = api.viewForPlot(project.plot, this.container.clientWidth, this.container.clientHeight, viewState);
             const gridPixels = viewState.step * view.scale;
@@ -52,7 +52,7 @@
                 if (!element) {
                     element = document.createElement('div');
                     element.dataset.id = object.id;
-                    element.addEventListener('mousedown', this.onDrag);
+                    element.addEventListener('pointerdown', this.onDrag);
                     element.addEventListener('click',()=>this.onSelect(object.id));
                     element.addEventListener('focus',()=>this.onSelect(object.id));
                     element.addEventListener('keydown',event=>{
@@ -104,7 +104,7 @@
             }
             document.getElementById('outside-warning').textContent = outsideObjects.length
                 ? `За границами участка: ${outsideObjects.length} (${outsideObjects.map(object => object.name).join(', ')}). Объекты сохранены. Увеличьте участок или переместите их.` : '';
-            this.renderLegend(project);
+            this.renderLegend(project,highlightedType);
             this.renderMeasurements(project, selectedId, view, analysis);
             return view;
         }
@@ -122,11 +122,13 @@
                 this.container.appendChild(border);
             }
         }
-        renderLegend(project) {
+        renderLegend(project,highlightedType) {
             const legend = document.getElementById('legend-content');
             legend.replaceChildren();
             for (const [type, definition] of Object.entries(api.definitions)) {
-                const item = document.createElement('div');
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.setAttribute('aria-pressed',String(type===highlightedType));
                 item.className = 'legend-item'; item.dataset.type = type;
                 const swatch = document.createElement('div');
                 swatch.className = 'legend-color'; swatch.style.backgroundColor = definition.color;
