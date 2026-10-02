@@ -87,6 +87,9 @@ body {
 .confirmation-panel { padding: 12px; border: 1px solid #ef6c00; background: #fff3e0; }
 .outside-warning { padding: 12px; border: 1px solid #c62828; background: #ffebee; color: #b71c1c; }
 .outside-building { outline: 3px dashed #c62828; outline-offset: 3px; }
+.invalid-building:not(.outside-building) { outline: 3px solid #c62828; outline-offset: 3px; }
+.placement-report { padding: 12px; margin-top: 16px; border: 1px solid #90a4ae; background: #fff; }
+.placement-issue { color: #b71c1c; margin-bottom: 8px; }
 
 #buildings-legend {
     border-radius: 5px;

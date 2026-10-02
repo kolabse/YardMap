@@ -291,3 +291,70 @@ test('container resize rerenders screen geometry without changing the project or
     assert.notEqual(app.run('document.querySelectorAll(".building")[0].style.width'), oldWidth);
     assert.equal(app.run('document.querySelectorAll(".distance-label").map(el => el.textContent).join("|")'), labels);
 });
+
+test('placement report rejects parking overlap even with zero required gap and no selected object', () => {
+    const app = editor(); app.add(); app.place(3, 4);
+    app.get('building-type').value = 'parking';
+    app.get('building-width').value = '2'; app.get('building-length').value = '2'; app.add();
+    app.run('YardMap.placeObject(project, project.objects[1].id, 4, 5); selectedId = null; render()');
+    assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "overlap").length'), 1);
+    assert.equal(app.run('document.querySelectorAll(".invalid-building").length'), 2);
+    app.run('selectedId = project.objects[0].id; render()');
+    assert.equal(app.run('document.querySelectorAll(".pair-measurement")[0].dataset.status'), 'overlap');
+});
+
+test('placement report distinguishes allowed parking contact from overlap and insufficient gaps', () => {
+    const app = editor(); app.add(); app.place(3, 4);
+    app.get('building-type').value = 'parking';
+    app.get('building-width').value = '2'; app.get('building-length').value = '2'; app.add();
+    app.run('YardMap.placeObject(project, project.objects[1].id, 8, 4); selectedId = null; render()');
+    assert.match(app.get('placement-summary').textContent, /Касаний: 1/);
+    assert.equal(app.run('document.querySelectorAll(".placement-issue").length'), 0);
+    assert.equal(app.run('document.querySelectorAll(".invalid-building").length'), 0);
+    app.run('project.objects[1].type = "house"; render()');
+    assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "object-gap").length'), 1);
+});
+
+test('placement report checks all placed objects and excludes waiting objects', () => {
+    const app = editor(); app.add(); app.place(3, 4);
+    app.add();
+    app.run('YardMap.placeObject(project, project.objects[1].id, 9, 4); selectedId = null; render()');
+    app.add(); // waiting object is now selected
+    assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "object-gap").length'), 1);
+    assert.equal(app.get('placement-summary').dataset.checkedObjects, '2');
+    app.run('YardMap.placeObject(project, project.objects[1].id, 12, 4); render()');
+    assert.equal(app.run('document.querySelectorAll(".placement-issue").length'), 0);
+});
+
+test('placement report detects exits at every plot side independently of selection', () => {
+    const app = editor(); app.add();
+    for (const point of [{x:-0.1,y:4}, {x:3,y:-0.1}, {x:15.1,y:4}, {x:3,y:29.1}]) {
+        app.run(`YardMap.placeObject(project, project.objects[0].id, ${point.x}, ${point.y}); selectedId = null; render()`);
+        assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "outside").length'), 1);
+    }
+});
+
+test('pair measurement connects closest rectangle points for a diagonal gap', () => {
+    const app = editor(); app.add(); app.place(3, 4); app.add();
+    app.run('YardMap.placeObject(project, project.objects[1].id, 11, 14); selectedId = project.objects[0].id; render()');
+    const line = app.run('document.querySelectorAll(".distance-line").filter(el => !el.classList.contains("distance-label")).at(-1)');
+    const scale = app.run('view.scale');
+    assert.ok(Math.abs(parseFloat(line.style.width) - 5 * scale) < 1e-9,
+        'diagonal 3-4-5 gap must measure 5 m, not the distance between centres');
+    assert.ok(Math.abs(parseFloat(line.style.left) - app.run('view.left + 8 * view.scale')) < 1e-9);
+    assert.ok(Math.abs(parseFloat(line.style.top) - app.run('view.top + 10 * view.scale')) < 1e-9);
+});
+
+test('distance labels explicitly describe preliminary thresholds rather than verified legal minima', () => {
+    const app = editor(); app.add(); app.place(3, 4);
+    const labels = app.run('document.querySelectorAll(".distance-label").map(el => el.textContent).join("|")');
+    assert.match(labels, /задано/);
+    assert.doesNotMatch(labels, /мин\./);
+});
+
+test('near-threshold labels do not round an insufficient offset up to its threshold', () => {
+    const app = editor(); app.add(); app.place(2.99999, 4);
+    assert.match(app.run('document.querySelectorAll(".distance-label")[0].textContent'), /^2\.99999 /);
+    app.place(-0.00001, 4);
+    assert.match(app.run('document.querySelectorAll(".distance-label")[0].textContent'), /^-0\.00001 /);
+});
