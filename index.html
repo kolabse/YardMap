@@ -194,6 +194,28 @@
         </div>
         
         <div class="center-column">
+            <section class="view-controls" aria-label="Управление видом">
+                <div class="view-buttons">
+                    <button id="zoom-in" aria-label="Увеличить вид">+</button>
+                    <button id="zoom-out" aria-label="Уменьшить вид">−</button>
+                    <button id="fit-view">Показать весь участок</button>
+                    <button id="pan-mode" aria-pressed="false">Перемещать вид</button>
+                </div>
+                <div class="view-buttons" aria-label="Сдвиг вида">
+                    <button id="pan-left" aria-label="Сдвинуть вид влево">←</button>
+                    <button id="pan-up" aria-label="Сдвинуть вид вверх">↑</button>
+                    <button id="pan-down" aria-label="Сдвинуть вид вниз">↓</button>
+                    <button id="pan-right" aria-label="Сдвинуть вид вправо">→</button>
+                </div>
+                <label><input id="grid-visible" type="checkbox" checked> Показывать сетку</label>
+                <label><input id="snap-enabled" type="checkbox"> Привязка при переносе</label>
+                <label for="grid-step">Шаг сетки и привязки (м)</label>
+                <input id="grid-step" type="number" min="0.01" max="1000" step="any" value="1" aria-describedby="view-error">
+                <button id="apply-view-settings">Применить настройки сетки</button>
+                <p id="view-error" class="field-error" role="alert"></p>
+                <p id="view-status" role="status"></p>
+                <p>В режиме перемещения вида потяните план мышью. Для переноса объекта выключите этот режим. Координаты в свойствах задаются точно, без привязки.</p>
+            </section>
             <div class="plot-container">
                 <div id="plot"></div>
             </div>
@@ -238,6 +260,7 @@
     <script src="js/geometry.js"></script>
     <script src="js/rules.js"></script>
     <script src="js/placement.js"></script>
+    <script src="js/viewport.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/history.js"></script>
     <script src="script.js"></script>
