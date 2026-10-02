@@ -6,7 +6,7 @@ const path = require('node:path');
 
 // Small DOM boundary; geometry assertions below use real project behaviour,
 // not CSS layout. Actual layout and dragging are also checked in the browser.
-function editor() {
+function editor(options = {}) {
     const ids = new Map();
     const downloads = [], blobs = new Map();
     class Element {
@@ -92,21 +92,27 @@ function editor() {
         addEventListener() {}, removeEventListener() {}
     };
     const alerts = [];
+    const storage = options.storage || memoryStorage();
+    const testWindow = { addEventListener() {} };
+    Object.defineProperty(testWindow,'localStorage',{ get() {
+        if (options.storageAccessError) throw new Error('Storage access denied');
+        return storage;
+    } });
     const context = vm.createContext({ document, console, Blob,
         URL: { createObjectURL(blob) { const url='blob:'+blobs.size; blobs.set(url,blob); return url; }, revokeObjectURL() {} },
-        setTimeout(fn) { fn(); }, alert(message) { alerts.push(message); }, window: { addEventListener() {} } });
+        setTimeout(fn) { fn(); }, alert(message) { alerts.push(message); }, window: testWindow });
     const root = path.join(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    for (const [, src] of html.matchAll(/<script\s+src="([^"]+)"/g)) {
-        vm.runInContext(fs.readFileSync(path.join(root, src), 'utf8'), context, { filename: src });
-    }
     const run = code => vm.runInContext(code, context);
     get('plot-width').value = '20'; get('plot-length').value = '35';
     get('building-type').value = 'house';
     for (const id of ['building-width', 'building-length']) {
         get(id).value = html.match(new RegExp(`<input[^>]+id="${id}"[^>]+value="([^"]+)"`))[1];
     }
-    run('createPlot()');
+    for (const [, src] of html.matchAll(/<script\s+src="([^"]+)"/g)) {
+        vm.runInContext(fs.readFileSync(path.join(root, src), 'utf8'), context, { filename: src });
+    }
+    if (!options.bootOnly) run('createPlot()');
     return {
         get, run, alerts, downloads,
         add() { run('createBuilding()'); },
@@ -124,6 +130,109 @@ function editor() {
         }
     };
 }
+
+function memoryStorage(initial = null) {
+    const data = new Map(initial === null ? [] : [['yardmap.project.v1',initial]]);
+    return { data, writes: 0, failWrites: false,
+        getItem(key) { return data.get(key) ?? null; },
+        setItem(key,value) { if(this.failWrites) throw new Error('Quota exceeded'); this.writes++; data.set(key,value); }
+    };
+}
+
+test('autosave restores completed geometry, borders, names and waiting objects on reload', () => {
+    const storage=memoryStorage(), app=editor({storage}); app.add(); app.place(4.25,5.5); app.add();
+    assert.equal(typeof app.get('project-name').listeners.change,'function','finished name edits trigger persistence');
+    app.get('project-name').listeners.input({target:{value:'Сад'}});
+    app.get('project-name').listeners.change({target:{value:'Сад'}});
+    app.get('north-side').value='road'; app.get('north-side').listeners.change({target:app.get('north-side')});
+    app.get('plot-width').value='25.5'; app.run('createPlot()');
+    assert.ok(storage.writes>0,'completed changes are written to storage');
+    const restored=editor({storage,bootOnly:true});
+    assert.equal(JSON.stringify(restored.state()),JSON.stringify(app.state()));
+    assert.equal(restored.get('project-name').value,'Сад');
+    assert.equal(restored.get('plot-width').value,'25.5');
+    assert.equal(restored.get('north-side').value,'road');
+    assert.equal(restored.run('document.querySelectorAll(".waiting-building").length'),1);
+    assert.equal(restored.get('autosave-status').dataset.state,'saved');
+});
+
+test('autosave stores only finished drags and preserves the saved snapshot on cancellation', () => {
+    const storage=memoryStorage(), app=editor({storage}); app.add(); app.place(4,5);
+    const before=storage.getItem('yardmap.project.v1'), writes=storage.writes;
+    assert.ok(before,'a committed project is saved');
+    app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale})');
+    assert.equal(storage.getItem('yardmap.project.v1'),before); assert.equal(storage.writes,writes);
+    const reloaded=editor({storage,bootOnly:true});
+    assert.equal(reloaded.state().objects[0].x,JSON.parse(before).objects[0].x);
+    app.run('cancelDrag()');
+    assert.equal(storage.getItem('yardmap.project.v1'),before);
+    app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale}); stopDrag()');
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects[0].x,app.state().objects[0].x);
+});
+
+test('autosave protects damaged or unsupported saved data until explicit replacement', () => {
+    for(const raw of ['{','{"version":99}']) {
+        const storage=memoryStorage(raw),app=editor({storage,bootOnly:true});
+        assert.equal(app.get('autosave-status').dataset.state,'blocked');
+        app.run('createPlot(); createBuilding()');
+        assert.equal(storage.getItem('yardmap.project.v1'),raw); assert.equal(storage.writes,0);
+        app.run('confirmStorageReplacement()');
+        assert.notEqual(storage.getItem('yardmap.project.v1'),raw);
+        assert.equal(app.get('autosave-status').dataset.state,'saved');
+    }
+});
+
+test('autosave failure leaves editor and JSON export usable and retry can succeed', async () => {
+    const storage=memoryStorage(),app=editor({storage}); const before=storage.getItem('yardmap.project.v1');
+    storage.failWrites=true; app.add();
+    assert.equal(app.get('autosave-status').dataset.state,'error');
+    assert.equal(storage.getItem('yardmap.project.v1'),before);
+    app.run('exportProject()');
+    assert.equal(JSON.parse(await app.downloads[0].blob.text()).objects.length,1);
+    storage.failWrites=false; app.run('saveCommittedProject()');
+    assert.equal(app.get('autosave-status').dataset.state,'saved');
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,1);
+    const denied=editor({storageAccessError:true}); denied.add();
+    assert.equal(denied.state().objects.length,1);
+    assert.notEqual(denied.get('autosave-status').dataset.state,'saved');
+});
+
+test('autosave changes stored project only after new-project or import confirmation', () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add();
+    const before=storage.getItem('yardmap.project.v1');
+    assert.ok(before,'current project is saved');
+    app.get('new-project').listeners.click(); app.get('cancel-new-project').listeners.click();
+    assert.equal(storage.getItem('yardmap.project.v1'),before);
+    app.run('confirmNewProject()');
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,0);
+    app.run(`stageProjectImport(${JSON.stringify(before)}); cancelProjectImport()`);
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,0);
+    app.run(`stageProjectImport(${JSON.stringify(before)}); confirmProjectImport()`);
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,1);
+});
+
+// Additional characterization after the focused autosave cycle.
+test('storage writes exclude invalid forms, selection and resize, and preserve a dragged footprint during another edit', () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add(); app.place(4,5);
+    const before=storage.getItem('yardmap.project.v1'),writes=storage.writes;
+    app.get('plot-width').value='0'; app.run('createPlot(); highlightBuildings("house"); render()');
+    assert.equal(storage.writes,writes); assert.equal(storage.getItem('yardmap.project.v1'),before);
+    app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale})');
+    app.add();
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects[0].x,JSON.parse(before).objects[0].x);
+    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,2);
+    assert.equal(app.get('autosave-status').dataset.state,'dirty');
+    app.run('cancelDrag()');
+    assert.equal(app.get('autosave-status').dataset.state,'saved');
+});
+test('storage restore does not write and a fully removed object reloads as waiting', () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add(); app.place(4,5); app.place(-100,-100);
+    const writes=storage.writes,restored=editor({storage,bootOnly:true});
+    assert.equal(storage.writes,writes);
+    assert.equal(restored.state().objects[0].status,'waiting');
+    assert.equal(restored.state().objects[0].x,null);
+    assert.equal(restored.run('document.querySelectorAll(".waiting-building").length'),1);
+});
 
 test('project objects are DOM-free data with stable identity and waiting state', () => {
     const app = editor(); app.add();
