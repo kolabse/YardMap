@@ -143,6 +143,95 @@ function savedProject(text) {
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
 
+test('history undoes and redoes add, drag, rotation and deletion with saved state', () => {
+    const storage=memoryStorage(),app=editor({storage});
+    assert.equal(app.run('typeof undoAction'),'function','undo is available');
+    const baseline=JSON.stringify(app.state());
+    app.add(); const added=JSON.stringify(app.state());
+    app.place(4,5); const placed=JSON.stringify(app.state());
+    app.run('rotateSelectedObject()');const rotated=JSON.stringify(app.state());
+    app.run('requestObjectDeletion(); confirmObjectDeletion()');const removed=JSON.stringify(app.state());
+    for(const expected of [rotated,placed,added,baseline]) {
+        app.run('undoAction()');assert.equal(JSON.stringify(app.state()),expected);
+        assert.equal(JSON.stringify(savedProject(storage.data.get('yardmap.project.v1'))),expected);
+    }
+    for(const expected of [added,placed,rotated,removed]) {app.run('redoAction()');assert.equal(JSON.stringify(app.state()),expected);}
+    assert.equal(app.get('redo-action').disabled,true);
+});
+
+test('history records dimensions, borders, properties and clears redo only for a real edit', () => {
+    const app=editor();assert.equal(app.run('typeof undoAction'),'function','undo is available');
+    app.add();app.place(18,5);const original=JSON.stringify(app.state());
+    app.get('plot-width').value='30';app.run('createPlot()');
+    app.get('north-side').listeners.change({target:{value:'road'}});
+    app.get('object-name').value='Дом у дороги';app.get('object-width').value='7';app.run('applyObjectProperties()');
+    app.run('undoAction()');assert.equal(app.state().objects[0].name,'Дом');
+    app.run('undoAction()');assert.equal(app.state().plot.borders.north,'');
+    app.run('undoAction()');assert.equal(JSON.stringify(app.state()),original);
+    assert.match(app.get('outside-warning').textContent,/За границами/);
+    app.get('building-width').value='0';app.add();app.run('render()');
+    assert.equal(app.get('redo-action').disabled,false);
+    app.get('plot-width').value='25';app.run('createPlot()');
+    assert.equal(app.get('redo-action').disabled,true);
+});
+
+test('history coalesces drag frames, ignores cancellation and preserves interleaved committed edits', () => {
+    const app=editor();assert.equal(app.run('typeof undoAction'),'function','undo is available');
+    app.add();app.place(4,5);const original=JSON.stringify(app.state());
+    app.run(`event={button:0,currentTarget:renderer.elements.get(selectedId),clientX:0,clientY:0,preventDefault(){}};startDrag(event);
+        drag({clientX:250,clientY:200});drag({clientX:260,clientY:210});stopDrag();undoAction()`);
+    assert.equal(JSON.stringify(app.state()),original);
+    app.run(`event={button:0,currentTarget:renderer.elements.get(selectedId),clientX:0,clientY:0,preventDefault(){}};startDrag(event);
+        drag({clientX:250,clientY:200});cancelDrag()`);
+    assert.equal(app.get('redo-action').disabled,false);
+    app.run(`event={button:0,currentTarget:renderer.elements.get(selectedId),clientX:0,clientY:0,preventDefault(){}};startDrag(event);
+        drag({clientX:250,clientY:200})`);
+    app.add();app.run('stopDrag();undoAction()');
+    assert.equal(app.state().objects.length,2);
+    assert.equal(JSON.stringify(app.state().objects[0]),JSON.stringify(JSON.parse(original).objects[0]));
+    app.run('undoAction()');assert.equal(JSON.stringify(app.state()),original);
+});
+
+test('history resets at variant, import, new-project and reload boundaries', () => {
+    const app=editor();assert.equal(app.run('typeof undoAction'),'function','undo is available');
+    app.add();const old=JSON.stringify(app.state());
+    app.run('copyVariant()');assert.equal(app.get('undo-action').disabled,true);
+    app.add();app.run('switchVariant("variant-1")');assert.equal(app.get('undo-action').disabled,true);
+    app.run('undoAction()');assert.equal(JSON.stringify(app.state()),old);
+    app.add();app.run(`stageProjectImport(${JSON.stringify(old)});cancelProjectImport()`);
+    assert.equal(app.get('undo-action').disabled,false);
+    app.run(`stageProjectImport(${JSON.stringify(old)});confirmProjectImport()`);
+    assert.equal(app.get('undo-action').disabled,true);
+    app.add();app.run('confirmNewProject()');assert.equal(app.get('undo-action').disabled,true);
+    const storage=memoryStorage();const first=editor({storage});first.add();
+    const reloaded=editor({storage,bootOnly:true});assert.equal(reloaded.get('undo-action').disabled,true);
+});
+
+test('history keyboard shortcuts respect text controls and support both redo combinations', () => {
+    const app=editor();app.add();assert.equal(app.run('typeof handleHistoryKeyDown'),'function','history shortcuts are available');
+    const before=JSON.stringify(app.state());
+    app.run(`handleHistoryKeyDown({key:'z',ctrlKey:true,target:{tagName:'INPUT'},preventDefault(){throw Error('text intercepted')}})`);
+    assert.equal(JSON.stringify(app.state()),before);
+    app.run(`handleHistoryKeyDown({key:'z',ctrlKey:true,target:{tagName:'DIV'},preventDefault(){}})`);
+    assert.equal(app.state().objects.length,0);
+    app.run(`handleHistoryKeyDown({key:'z',metaKey:true,shiftKey:true,target:{tagName:'DIV'},preventDefault(){}})`);
+    assert.equal(JSON.stringify(app.state()),before);
+    app.run(`undoAction();handleHistoryKeyDown({key:'y',ctrlKey:true,target:{tagName:'DIV'},preventDefault(){}})`);
+    assert.equal(JSON.stringify(app.state()),before);
+});
+
+test('history remains usable when autosave fails and does not change another variant', () => {
+    const storage=memoryStorage(),app=editor({storage});app.add();
+    app.run('copyVariant()');const originalVariant=app.run('JSON.stringify(layouts.variants[0].project)');
+    app.add();storage.failWrites=true;app.run('undoAction()');
+    assert.equal(app.state().objects.length,1);
+    assert.equal(app.get('autosave-status').dataset.state,'error');
+    app.run('redoAction()');assert.equal(app.state().objects.length,2);
+    assert.equal(app.run('JSON.stringify(layouts.variants[0].project)'),originalVariant);
+    storage.failWrites=false;app.run('saveCommittedProject()');
+    assert.equal(savedProject(storage.data.get('yardmap.project.v1')).objects.length,2);
+});
+
 test('placement coordinate drafts keep empty input until apply instead of replacing it with zero', () => {
     const app=editor();app.add();
     app.get('object-status').value='placed';app.get('object-status').listeners.change();

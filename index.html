@@ -9,6 +9,12 @@
 <body>
     <h1>ПланДач</h1>
     <h2>Планирование участка в СНТ</h2>
+    <section class="input-section" aria-label="История изменений">
+        <button id="undo-action" disabled>Отменить</button>
+        <button id="redo-action" disabled>Повторить</button>
+        <p id="history-status" role="status" aria-live="polite"></p>
+        <p>Ctrl/Cmd+Z — отменить, Ctrl/Cmd+Shift+Z или Ctrl+Y — повторить. В полях ввода сочетания редактируют текст.</p>
+    </section>
     <section class="input-section" aria-label="Варианты планировки">
         <label for="variant-select">Вариант планировки</label>
         <select id="variant-select"></select>
@@ -233,6 +239,7 @@
     <script src="js/rules.js"></script>
     <script src="js/placement.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/history.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
