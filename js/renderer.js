@@ -1,5 +1,14 @@
 (() => {
     const api = globalThis.YardMap;
+    function distanceText(actual, required) {
+        const value = Math.abs(actual) <= api.geometryEpsilon ? 0 : actual;
+        let precision = 3;
+        while (precision < 9 && ((value < 0 && Number(value.toFixed(precision)) === 0)
+            || (value + api.geometryEpsilon < required && Number(value.toFixed(precision)) >= required))) {
+            precision++;
+        }
+        return value.toFixed(precision);
+    }
     class Renderer {
         constructor(container, waitingArea, onDrag, onHighlight) {
             this.container = container;
@@ -10,6 +19,8 @@
             this.onHighlight = onHighlight;
         }
         render(project, selectedId, highlightedType) {
+            const analysis = api.analyzePlacement(project);
+            this.renderPlacementReport(project, analysis);
             if (!project.plot) { this.renderLegend(project); return null; }
             const view = api.createView(project.plot, this.container.clientWidth, this.container.clientHeight);
             Object.assign(this.plot.style, {
@@ -38,6 +49,7 @@
                 if (outside) outsideObjects.push(object);
                 element.className = 'building' + (waiting ? ' waiting-building' : '')
                     + (outside ? ' outside-building' : '')
+                    + (analysis.invalidObjectIds.has(object.id) ? ' invalid-building' : '')
                     + (object.id === selectedId ? ' selected-building' : '');
                 element.dataset.type = object.type;
                 element.title = `${object.name} ${object.width} × ${object.length} м`;
@@ -69,7 +81,7 @@
             document.getElementById('outside-warning').textContent = outsideObjects.length
                 ? `За границами участка: ${outsideObjects.length} (${outsideObjects.map(object => object.name).join(', ')}). Объекты сохранены. Увеличьте участок или переместите их.` : '';
             this.renderLegend(project);
-            this.renderMeasurements(project, selectedId, view);
+            this.renderMeasurements(project, selectedId, view, analysis);
             return view;
         }
         renderBorders(plot, view) {
@@ -104,7 +116,33 @@
                 legend.appendChild(item);
             }
         }
-        renderMeasurements(project, selectedId, view) {
+        renderPlacementReport(project, analysis) {
+            document.getElementById('placement-report').hidden = !project.plot;
+            const summary = document.getElementById('placement-summary');
+            summary.dataset.checkedObjects = String(analysis.checkedObjects);
+            const count = kind => analysis.issues.filter(issue => issue.kind === kind).length;
+            summary.textContent = `Размещено: ${analysis.checkedObjects}. Пересечений: ${count('overlap')}. Выходов за участок: ${count('outside')}. Недостаточных отступов: ${count('border-gap') + count('object-gap')}. Касаний: ${analysis.contacts}.`;
+            const list = document.getElementById('placement-issues');
+            list.replaceChildren();
+            const sideNames = { left: 'западной', right: 'восточной', top: 'северной', bottom: 'южной' };
+            for (const issue of analysis.issues) {
+                const names = issue.objectIds.map(id => project.objects.find(object => object.id === id).name);
+                const item = document.createElement('li');
+                item.className = 'placement-issue';
+                item.dataset.kind = issue.kind;
+                if (issue.kind === 'outside') {
+                    item.textContent = `${names[0]} выходит за границы участка (${issue.sides.map(side => sideNames[side]).join(', ')}).`;
+                } else if (issue.kind === 'overlap') {
+                    item.textContent = `${names.join(' ↔ ')}: контуры пересекаются. Нулевой отступ не разрешает перекрытие.`;
+                } else if (issue.kind === 'object-gap') {
+                    item.textContent = `${names.join(' ↔ ')}: ${distanceText(issue.actual, issue.required)} м между контурами; задано ${issue.required} м.`;
+                } else {
+                    item.textContent = `${names[0]}: ${distanceText(issue.actual, issue.required)} м до ${sideNames[issue.side]} границы; задано ${issue.required} м.`;
+                }
+                list.appendChild(item);
+            }
+        }
+        renderMeasurements(project, selectedId, view, analysis) {
             document.querySelectorAll('.distance-line').forEach(element => element.remove());
             const object = project.objects.find(item => item.id === selectedId);
             if (!object || object.status !== 'placed') return;
@@ -120,19 +158,19 @@
             for (const [side, points] of Object.entries(segments)) {
                 this.distanceLine(points[0], points[1], distances[side], api.requiredBorderDistance(object.type), view);
             }
-            for (const other of project.objects) {
-                if (other.id === object.id || other.status !== 'placed') continue;
-                const otherRect = api.objectRect(other);
-                this.distanceLine(centre, {
-                    x: (otherRect.left + otherRect.right) / 2, y: (otherRect.top + otherRect.bottom) / 2
-                }, api.rectangleDistance(rect, otherRect), api.requiredObjectDistance(object.type, other.type), view);
+            for (const pair of analysis.pairs) {
+                if (!pair.objectIds.includes(object.id)) continue;
+                const reversed = pair.objectIds[1] === object.id;
+                this.distanceLine(reversed ? pair.end : pair.start, reversed ? pair.start : pair.end,
+                    pair.distance, pair.required, view, { pair: true, status: pair.relation });
             }
         }
-        distanceLine(start, end, actual, required, view) {
+        distanceLine(start, end, actual, required, view, options = {}) {
             const a = api.toScreen(start, view), b = api.toScreen(end, view);
-            const ok = actual >= required;
+            const ok = options.status !== 'overlap' && actual + api.geometryEpsilon >= required;
             const line = document.createElement('div');
-            line.className = 'distance-line';
+            line.className = 'distance-line' + (options.pair ? ' pair-measurement' : '');
+            if (options.status) line.dataset.status = options.status;
             Object.assign(line.style, {
                 left: a.x + 'px', top: a.y + 'px', width: Math.hypot(b.x - a.x, b.y - a.y) + 'px',
                 height: '2px', backgroundColor: ok ? '#4caf50' : '#f44336', transformOrigin: '0 0',
@@ -141,7 +179,8 @@
             this.container.appendChild(line);
             const label = document.createElement('div');
             label.className = 'distance-line distance-label';
-            label.textContent = `${actual.toFixed(1)} м (мин. ${required} м)`;
+            label.textContent = options.status === 'overlap' ? 'Пересечение контуров'
+                : `${distanceText(actual, required)} м (задано ${required} м)${options.status === 'touching' ? ' — касание' : ''}`;
             Object.assign(label.style, {
                 left: (a.x + b.x) / 2 + 'px', top: (a.y + b.y) / 2 + 'px',
                 borderColor: ok ? '#4caf50' : '#f44336'

@@ -1,5 +1,5 @@
 (() => {
-    // Legacy thresholds preserved during YM-001; source verification is YM-011.
+    // Preliminary inherited thresholds, not verified legal requirements. Sources: YM-011.
     function requiredBorderDistance(type) {
         if (type === 'house') return 3;
         if (type === 'toilet' || type === 'well') return 8;
