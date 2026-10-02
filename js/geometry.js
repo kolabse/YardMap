@@ -22,6 +22,12 @@
         const rect = objectRect(object);
         return rect.right > 0 && rect.bottom > 0 && rect.left < plot.width && rect.top < plot.length;
     }
+    function isInsidePlot(plot, object) {
+        const rect = objectRect(object);
+        const epsilon = 1e-9; // Avoid marking an exact boundary contact due to conversion round-off.
+        return rect.left >= -epsilon && rect.top >= -epsilon
+            && rect.right <= plot.width + epsilon && rect.bottom <= plot.length + epsilon;
+    }
     function createView(plot, width, height) {
         const scale = Math.max(0.01, Math.min(Math.max(1, width - 80) / plot.width,
             Math.max(1, height - 80) / plot.length) * 0.9);
@@ -33,7 +39,7 @@
     function toMetres(point, view) {
         return { x: (point.x - view.left) / view.scale, y: (point.y - view.top) / view.scale };
     }
-    const api = { objectSize, objectRect, borderDistances, rectangleDistance, touchesPlot, createView, toScreen, toMetres };
+    const api = { objectSize, objectRect, borderDistances, rectangleDistance, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();

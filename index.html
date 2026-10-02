@@ -17,12 +17,21 @@
                 <h3>Размер участка</h3>
                 <div>
                     <label for="plot-width">Ширина (м):</label>
-                    <input type="number" id="plot-width" min="1" value="20">
+                    <input type="number" id="plot-width" min="0" step="any" value="20" aria-describedby="plot-width-error">
+                    <p id="plot-width-error" class="field-error" role="alert"></p>
                     
                     <label for="plot-length">Длина (м):</label>
-                    <input type="number" id="plot-length" min="1" value="35">
+                    <input type="number" id="plot-length" min="0" step="any" value="35" aria-describedby="plot-length-error">
+                    <p id="plot-length-error" class="field-error" role="alert"></p>
                     
                     <button id="create-plot">Создать участок</button>
+                    <p id="plot-summary" role="status"></p>
+                    <button id="new-project" class="secondary-button" hidden>Новый проект</button>
+                    <div id="new-project-confirmation" class="confirmation-panel" hidden>
+                        <p>Новый проект очистит все объекты и границы текущего плана. Размеры нового участка задайте в полях выше.</p>
+                        <button id="confirm-new-project">Создать новый проект</button>
+                        <button id="cancel-new-project" class="secondary-button">Продолжить текущий</button>
+                    </div>
                 </div>
             </div>
     
@@ -82,7 +91,7 @@
                 <h2>Добавление построек</h2>
                 <div>
                     <label for="building-type">Тип постройки:</label>
-                    <select id="building-type">
+                    <select id="building-type" aria-describedby="building-type-error">
                         <option value="" selected disabled>Выбрать</option>
                         <option value="house">Дом</option>
                         <option value="garage">Гараж</option>
@@ -96,13 +105,16 @@
                         <option value="veranda">Веранда</option>
                         <option value="parking">Парковка</option>
                     </select>
+                    <p id="building-type-error" class="field-error" role="alert"></p>
                     
                     <div id="building-size-controls" class="building-controls">
-                        <label for="building-width">Ширина (см):</label>
-                        <input type="number" id="building-width" min="1" value="500">
+                        <label for="building-width">Ширина (м):</label>
+                        <input type="number" id="building-width" min="0" step="any" value="5" aria-describedby="building-width-error">
+                        <p id="building-width-error" class="field-error" role="alert"></p>
                         
-                        <label for="building-length">Длина (см):</label>
-                        <input type="number" id="building-length" min="1" value="600">
+                        <label for="building-length">Длина (м):</label>
+                        <input type="number" id="building-length" min="0" step="any" value="6" aria-describedby="building-length-error">
+                        <p id="building-length-error" class="field-error" role="alert"></p>
                         
                         <button id="create-building">Создать постройку</button>
                     </div>
@@ -114,6 +126,7 @@
             <div class="plot-container">
                 <div id="plot"></div>
             </div>
+            <p id="outside-warning" class="outside-warning" role="status" aria-live="polite"></p>
             <div id="waiting-section" style="display: none;">
                 <h3>Неразмещённые объекты</h3>
                 <p>Перетащите объект на участок. Объекты в этой области не участвуют в проверке расстояний.</p>

@@ -16,6 +16,7 @@ function editor() {
             this.children = [];
             this.className = '';
             this.value = '';
+            this.textContent = '';
             this.clientWidth = 650;
             this.clientHeight = 500;
             this.listeners = {};
@@ -87,7 +88,8 @@ function editor() {
         createElement: tag => new Element(tag),
         addEventListener() {}, removeEventListener() {}
     };
-    const context = vm.createContext({ document, console, alert() {}, window: { addEventListener() {} } });
+    const alerts = [];
+    const context = vm.createContext({ document, console, alert(message) { alerts.push(message); }, window: { addEventListener() {} } });
     const root = path.join(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     for (const [, src] of html.matchAll(/<script\s+src="([^"]+)"/g)) {
@@ -96,10 +98,12 @@ function editor() {
     const run = code => vm.runInContext(code, context);
     get('plot-width').value = '20'; get('plot-length').value = '35';
     get('building-type').value = 'house';
-    get('building-width').value = '500'; get('building-length').value = '600';
+    for (const id of ['building-width', 'building-length']) {
+        get(id).value = html.match(new RegExp(`<input[^>]+id="${id}"[^>]+value="([^"]+)"`))[1];
+    }
     run('createPlot()');
     return {
-        get, run,
+        get, run, alerts,
         add() { run('createBuilding()'); },
         state() {
             return run('typeof project === "undefined" ? {objects: buildings} : project');
@@ -182,4 +186,108 @@ test('waiting objects do not participate in measurements', () => {
     const id = app.state().objects[0].id;
     app.run(`selectedId = '${id}'; render()`);
     assert.equal(app.run('document.querySelectorAll(".distance-label").length'), 4);
+});
+
+test('building dimensions are entered directly in metres including fractions', () => {
+    const app = editor();
+    app.get('building-width').value = '5.25'; app.get('building-length').value = '6.5';
+    app.add();
+    assert.equal(app.state().objects[0].width, 5.25);
+    assert.equal(app.state().objects[0].length, 6.5);
+});
+
+test('invalid plot dimensions report errors at each field without mutating the project', () => {
+    const app = editor(); app.add();
+    const before = JSON.stringify(app.state());
+    for (const bad of ['', '0', '-1', 'Infinity', 'NaN']) {
+        app.get('plot-width').value = bad; app.get('plot-length').value = bad;
+        app.run('createPlot()');
+        assert.equal(JSON.stringify(app.state()), before);
+        assert.equal(app.get('plot-width')['aria-invalid'], 'true');
+        assert.equal(app.get('plot-length')['aria-invalid'], 'true');
+        assert.match(app.get('plot-width-error').textContent, /больше нуля/);
+        assert.match(app.get('plot-length-error').textContent, /больше нуля/);
+    }
+    assert.equal(app.alerts.length, 0);
+    app.get('plot-width').value = '20.5'; app.get('plot-length').value = '35.75';
+    app.run('createPlot()');
+    assert.equal(app.get('plot-width-error').textContent, '');
+    assert.equal(app.get('plot-width')['aria-invalid'], 'false');
+    assert.equal(app.state().plot.width, 20.5); assert.equal(app.state().plot.length, 35.75);
+});
+
+test('invalid building dimensions leave model and legend untouched and report inline errors', () => {
+    const app = editor(); app.add();
+    const before = JSON.stringify(app.state());
+    for (const bad of ['', '0', '-0.25', 'Infinity', 'NaN']) {
+        app.get('building-width').value = bad; app.get('building-length').value = bad;
+        app.add();
+        assert.equal(JSON.stringify(app.state()), before);
+        assert.equal(app.get('building-width')['aria-invalid'], 'true');
+        assert.equal(app.get('building-length')['aria-invalid'], 'true');
+        assert.match(app.get('building-width-error').textContent, /больше нуля/);
+        assert.equal(app.run('document.querySelectorAll(".legend-count")[0].textContent'), '1');
+    }
+    assert.equal(app.alerts.length, 0);
+});
+
+test('shrinking the plot preserves objects and marks all outside objects without selection', () => {
+    const app = editor(); app.add(); app.place(12, 20);
+    const before = JSON.stringify(app.state().objects[0]);
+    app.add(); // selected object is now waiting; warning must cover the entire plan
+    app.get('plot-width').value = '10'; app.get('plot-length').value = '15';
+    app.run('createPlot()');
+    assert.equal(JSON.stringify(app.state().objects[0]), before);
+    assert.equal(app.run('document.querySelectorAll(".outside-building").length'), 1);
+    assert.match(app.get('outside-warning').textContent, /1/);
+    app.get('plot-width').value = '20'; app.get('plot-length').value = '35';
+    app.run('createPlot()');
+    assert.equal(app.run('document.querySelectorAll(".outside-building").length'), 0);
+    assert.equal(app.get('outside-warning').textContent, '');
+});
+
+test('new project has explicit confirmation and cancellation retains current objects', () => {
+    const app = editor(); app.add(); app.place(3.25, 4.75);
+    const before = JSON.stringify(app.state());
+    assert.equal(typeof app.get('new-project').listeners.click, 'function', 'separate new-project action is required');
+    app.get('new-project').listeners.click();
+    assert.equal(app.get('new-project-confirmation').hidden, false);
+    assert.equal(JSON.stringify(app.state()), before);
+    app.get('cancel-new-project').listeners.click();
+    assert.equal(app.get('new-project-confirmation').hidden, true);
+    assert.equal(JSON.stringify(app.state()), before);
+    app.get('new-project').listeners.click();
+    app.get('plot-width').value = '25.5'; app.get('plot-length').value = '40';
+    app.get('north-side').value = 'road';
+    app.get('confirm-new-project').listeners.click();
+    assert.equal(app.state().objects.length, 0);
+    assert.equal(app.state().plot.width, 25.5);
+    assert.equal(app.state().plot.borders.north, '');
+    assert.equal(app.get('north-side').value, '');
+    assert.equal(app.run('document.querySelectorAll(".building").length'), 0);
+    assert.equal(app.get('new-project-confirmation').hidden, true);
+});
+
+test('invalid new-project dimensions cannot erase the existing project', () => {
+    const app = editor(); app.add();
+    const before = JSON.stringify(app.state());
+    assert.equal(typeof app.get('new-project').listeners.click, 'function', 'separate new-project action is required');
+    app.get('new-project').listeners.click();
+    app.get('plot-width').value = '';
+    app.get('confirm-new-project').listeners.click();
+    assert.equal(JSON.stringify(app.state()), before);
+    assert.equal(app.get('new-project-confirmation').hidden, false);
+    assert.equal(app.get('plot-width')['aria-invalid'], 'true');
+});
+
+test('container resize rerenders screen geometry without changing the project or measurements', () => {
+    const app = editor(); app.add(); app.place(3.25, 4.75);
+    const before = JSON.stringify(app.state());
+    const oldWidth = app.run('document.querySelectorAll(".building")[0].style.width');
+    const labels = app.run('document.querySelectorAll(".distance-label").map(el => el.textContent).join("|")');
+    app.get('container').clientWidth = 300;
+    app.run('render()');
+    assert.equal(JSON.stringify(app.state()), before);
+    assert.notEqual(app.run('document.querySelectorAll(".building")[0].style.width'), oldWidth);
+    assert.equal(app.run('document.querySelectorAll(".distance-label").map(el => el.textContent).join("|")'), labels);
 });
