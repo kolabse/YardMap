@@ -114,6 +114,11 @@
             <div class="plot-container">
                 <div id="plot"></div>
             </div>
+            <div id="waiting-section" style="display: none;">
+                <h3>Неразмещённые объекты</h3>
+                <p>Перетащите объект на участок. Объекты в этой области не участвуют в проверке расстояний.</p>
+                <div id="waiting-area"></div>
+            </div>
         </div>
         
         <div class="right-column">
@@ -138,6 +143,11 @@
         </ul>
     </div>
 
+    <script src="js/catalog.js"></script>
+    <script src="js/model.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/renderer.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
