@@ -14,6 +14,7 @@ let activeDrag = null;
 let pendingImport = null;
 let importRequest = 0;
 const projectStore = YardMap.createProjectStore(() => window.localStorage);
+const history = YardMap.createHistory();
 let storageBlocked = false;
 let committedSaveStatus = { state: 'empty', text: 'Сохранённого проекта пока нет.' };
 const renderer = new YardMap.Renderer(plotContainer, waitingArea, startDrag, highlightBuildings, selectObject);
@@ -38,6 +39,9 @@ for (const id of ['object-name','object-width','object-length','object-x','objec
     });
 }
 document.addEventListener('keydown',handleObjectKeyDown);
+document.addEventListener('keydown',handleHistoryKeyDown);
+document.getElementById('undo-action').addEventListener('click',undoAction);
+document.getElementById('redo-action').addEventListener('click',redoAction);
 document.getElementById('variant-select').addEventListener('change', event => switchVariant(event.target.value));
 document.getElementById('create-variant').addEventListener('click', createVariant);
 document.getElementById('copy-variant').addEventListener('click', copyVariant);
@@ -88,9 +92,11 @@ window.addEventListener('resize', render);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(render).observe(plotContainer);
 window.addEventListener('blur', cancelDrag);
 restoreSavedProject();
+history.reset(project);
 render();
 
 function render() {
+    renderHistory();
     renderVariants();
     view = renderer.render(project, selectedId, highlightedType);
     renderObjectProperties();
@@ -176,6 +182,7 @@ function confirmNewProject() {
     render();
     storageBlocked = false;
     document.getElementById('storage-replacement-confirmation').hidden = true;
+    history.reset(project);
     saveCommittedProject();
 }
 
@@ -284,6 +291,7 @@ function confirmProjectImport() {
     cancelProjectImport();
     selectedId = null; highlightedType = null;
     syncProjectFields();
+    history.reset(project);
     render();
     storageBlocked = false;
     document.getElementById('storage-replacement-confirmation').hidden = true;
@@ -335,11 +343,13 @@ function restoreSavedProject() {
         setSaveStatus('blocked',`Сохранённый проект не удалось открыть: ${result.error} Автосохранение приостановлено; прежняя запись сохранена до подтверждения замены.`);
     } else setSaveStatus('empty','Сохранённого проекта пока нет. Изменения будут сохраняться в этом браузере.');
 }
-function saveCommittedProject() {
-    if (storageBlocked) return;
+function saveCommittedProject(recordHistory = true) {
     // Other completed edits may occur during a drag; persist its starting footprint.
     const snapshot = activeDrag ? { ...project, objects: project.objects.map(object =>
         object.id === activeDrag.id ? activeDrag.before : object) } : project;
+    if (recordHistory !== false) history.record(snapshot);
+    renderHistory();
+    if (storageBlocked) return;
     const storedLayouts = { ...layouts, variants: layouts.variants.map(item =>
         item.id === layouts.activeId ? { ...item, project: snapshot } : item) };
     const result = projectStore.save(storedLayouts);
@@ -388,12 +398,14 @@ function switchVariant(id) {
     if (!variant || id === layouts.activeId || !prepareVariantChange()) return;
     layouts.activeId = id; project = variant.project;
     selectedId = null; highlightedType = null;
+    history.reset(project);
     syncProjectFields(); render(); saveCommittedProject();
 }
 function addVariant(plan) {
     const id = `variant-${layouts.nextVariantId++}`;
     layouts.variants.push({ id, project: plan }); layouts.activeId = id; project = plan;
     selectedId = null; highlightedType = null;
+    history.reset(project);
     syncProjectFields(); render(); saveCommittedProject();
 }
 function createVariant() {
@@ -428,10 +440,37 @@ function confirmVariantDeletion() {
     cancelVariantDeletion();
     layouts.activeId = layouts.variants[0].id; project = layouts.variants[0].project;
     selectedId = null; highlightedType = null;
+    history.reset(project);
     syncProjectFields(); render(); saveCommittedProject();
 }
 
 function selectedObject() { return project.objects.find(object=>object.id===selectedId); }
+function renderHistory() {
+    const counts = history.counts();
+    document.getElementById('undo-action').disabled = counts.undo === 0;
+    document.getElementById('redo-action').disabled = counts.redo === 0;
+    document.getElementById('history-status').textContent = `Действий для отмены: ${counts.undo}; для повтора: ${counts.redo}. История текущего варианта: до 100 действий, до смены варианта или перезагрузки.`;
+}
+function restoreHistory(direction) {
+    cancelDrag();
+    const restored = history[direction]();
+    if (!restored) return;
+    cancelProjectImport(); cancelVariantDeletion(); cancelObjectDeletion();
+    project = restored;
+    layouts.variants.find(item=>item.id===layouts.activeId).project = project;
+    if (!project.objects.some(object=>object.id===selectedId)) selectedId = null;
+    syncProjectFields(); render(); saveCommittedProject(false);
+}
+function undoAction() { restoreHistory('undo'); }
+function redoAction() { restoreHistory('redo'); }
+function handleHistoryKeyDown(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing) return;
+    const target = event.target;
+    if (['INPUT','SELECT','TEXTAREA'].includes(target?.tagName) || target?.isContentEditable) return;
+    const key = event.key.toLowerCase();
+    if (key === 'z') { event.preventDefault(); event.shiftKey ? redoAction() : undoAction(); }
+    else if (key === 'y' && event.ctrlKey && !event.shiftKey) { event.preventDefault(); redoAction(); }
+}
 function selectObject(id) {
     if(selectedId===id && !activeDrag)return;
     cancelDrag(); cancelObjectDeletion();
