@@ -8,6 +8,7 @@ const path = require('node:path');
 // not CSS layout. Actual layout and dragging are also checked in the browser.
 function editor() {
     const ids = new Map();
+    const downloads = [], blobs = new Map();
     class Element {
         constructor(tag = 'div') {
             this.tagName = tag;
@@ -32,6 +33,7 @@ function editor() {
         addEventListener(type, fn) { this.listeners[type] = fn; }
         removeEventListener(type) { delete this.listeners[type]; }
         setAttribute(name, value) { this[name] = value; }
+        click() { downloads.push({ filename: this.download, blob: blobs.get(this.href) }); }
         appendChild(child) {
             child.remove();
             child.parentElement = this;
@@ -80,6 +82,7 @@ function editor() {
         return [...found];
     };
     const document = {
+        body: new Element('body'),
         getElementById: get,
         querySelector: () => container,
         querySelectorAll: selector => selector.startsWith('#')
@@ -89,7 +92,9 @@ function editor() {
         addEventListener() {}, removeEventListener() {}
     };
     const alerts = [];
-    const context = vm.createContext({ document, console, alert(message) { alerts.push(message); }, window: { addEventListener() {} } });
+    const context = vm.createContext({ document, console, Blob,
+        URL: { createObjectURL(blob) { const url='blob:'+blobs.size; blobs.set(url,blob); return url; }, revokeObjectURL() {} },
+        setTimeout(fn) { fn(); }, alert(message) { alerts.push(message); }, window: { addEventListener() {} } });
     const root = path.join(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     for (const [, src] of html.matchAll(/<script\s+src="([^"]+)"/g)) {
@@ -103,7 +108,7 @@ function editor() {
     }
     run('createPlot()');
     return {
-        get, run, alerts,
+        get, run, alerts, downloads,
         add() { run('createBuilding()'); },
         state() {
             return run('typeof project === "undefined" ? {objects: buildings} : project');
@@ -132,6 +137,67 @@ test('project objects are DOM-free data with stable identity and waiting state',
     app.place(3.25, 4.75);
     assert.equal(app.state().objects[0].id, id);
     assert.doesNotThrow(() => JSON.stringify(app.state()));
+});
+
+test('JSON import stages replacement, cancellation keeps current plan and confirmation resets UI', () => {
+    const app=editor(); app.add(); app.place(4,5);
+    assert.equal(app.run('typeof stageProjectImport'),'function','import action is available');
+    const originalX=app.state().objects[0].x;
+    const incoming=JSON.parse(JSON.stringify(app.state()));
+    incoming.name='Другой сад'; incoming.settings={units:'m'};
+    incoming.plot.width=40; incoming.plot.borders.north='road'; incoming.objects[0].x=12;
+    app.run(`stageProjectImport(${JSON.stringify(JSON.stringify(incoming))})`);
+    assert.equal(app.state().plot.width,20);
+    app.run('cancelProjectImport()');
+    assert.equal(app.state().objects[0].x,originalX);
+    app.run(`stageProjectImport(${JSON.stringify(JSON.stringify(incoming))}); confirmProjectImport()`);
+    assert.equal(app.state().objects[0].x,12); assert.equal(app.state().name,'Другой сад');
+    assert.equal(app.get('plot-width').value,'40'); assert.equal(app.get('north-side').value,'road');
+    assert.equal(app.run('selectedId'),null);
+    app.get('plot-length').value='50'; app.run('createPlot()');
+    assert.equal(app.state().plot.borders.north,'road');
+});
+
+test('JSON import errors preserve model and empty import clears rendered objects', () => {
+    const app=editor(); app.add(); app.place(4,5);
+    assert.equal(app.run('typeof stageProjectImport'),'function','safe import action is available');
+    const before=JSON.stringify(app.state());
+    app.run('stageProjectImport("{")');
+    assert.equal(JSON.stringify(app.state()),before);
+    assert.match(app.get('project-file-status').textContent,/JSON/);
+    const text=app.run('YardMap.serializeProject(YardMap.createProject())');
+    app.run(`stageProjectImport(${JSON.stringify(text)}); confirmProjectImport()`);
+    assert.equal(app.state().plot,null);
+    assert.equal(app.run('document.querySelectorAll(".building").length'),0);
+    assert.equal(app.get('create-plot').textContent,'Создать участок');
+});
+
+// Characterization of the actual file adapter after the serializer/controller cycle.
+test('JSON download contains the current named project as a portable file', async () => {
+    const app=editor(); app.add(); app.place(4,5);
+    app.get('project-name').listeners.input({target:{value:'Мой сад'}});
+    app.run('exportProject()');
+    assert.equal(app.downloads.length,1);
+    assert.equal(app.downloads[0].filename,'yardmap-project.json');
+    assert.deepEqual(JSON.parse(await app.downloads[0].blob.text()),JSON.parse(JSON.stringify(app.state())));
+});
+test('JSON file adapter ignores stale reads and protects current plan on read errors', async () => {
+    const app=editor(); app.add();
+    const before=JSON.stringify(app.state());
+    const input=app.get('import-project');
+    let resolveOld;
+    input.files=[{size:1,text:()=>new Promise(resolve=>{resolveOld=resolve;})}];
+    const oldRead=input.listeners.change({target:input});
+    input.files=[{size:1,text:()=>Promise.resolve('{')}];
+    await input.listeners.change({target:input});
+    resolveOld(app.run('YardMap.serializeProject(YardMap.createProject())'));
+    await oldRead;
+    assert.equal(app.run('pendingImport'),null);
+    assert.match(input.value,/^$/); assert.equal(JSON.stringify(app.state()),before);
+    input.files=[{size:1,text:()=>Promise.reject(new Error('Ошибка чтения'))}];
+    await input.listeners.change({target:input});
+    assert.match(app.get('project-file-status').textContent,/Ошибка чтения/);
+    assert.equal(JSON.stringify(app.state()),before);
 });
 
 test('drag stores precise metre coordinates relative to the plot', () => {

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Сад у озера",
+  "settings": { "units": "m" },
+  "plot": {
+    "width": 20.5,
+    "length": 35.75,
+    "borders": { "north": "road", "east": "neighbor", "south": "forest", "west": "" }
+  },
+  "objects": [
+    { "id": "object-1", "type": "house", "name": "Наш дом", "width": 5.25, "length": 6.5, "rotation": 90, "x": 4, "y": 5, "status": "placed" },
+    { "id": "object-2", "type": "parking", "name": "Парковка", "width": 3, "length": 5, "rotation": 0, "x": null, "y": null, "status": "waiting" }
+  ],
+  "nextObjectId": 3
+}
