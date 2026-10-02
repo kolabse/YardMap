@@ -48,6 +48,10 @@ body {
 }
 
 .selected-building { outline: 2px solid #263238; outline-offset: 2px; }
+.building-name { display: block; padding: 2px; font-size: 11px; line-height: 1.2; overflow-wrap: anywhere; max-height: 100%; overflow: hidden; pointer-events: none; }
+.locked-building { cursor: default; border-style: double; }
+#object-properties label { display: block; margin-top: 8px; }
+#object-properties input, #object-properties select { box-sizing: border-box; max-width: 100%; width: 100%; }
 #plot { box-sizing: border-box; }
 #waiting-area {
     display: flex;

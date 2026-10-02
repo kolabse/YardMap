@@ -47,11 +47,12 @@
             if (typeof object.type !== 'string' || !Object.hasOwn(definitions,object.type)) fail(`${label}: неизвестный тип объекта.`);
             if (![0,90,180,270].includes(object.rotation)) fail(`${label}: поворот должен быть 0, 90, 180 или 270 градусов.`);
             if (!['waiting','placed'].includes(object.status)) fail(`${label}: неизвестное состояние размещения.`);
+            if (object.locked !== undefined && typeof object.locked !== 'boolean') fail(`${label}: неверное состояние блокировки.`);
             if (object.status === 'waiting' ? object.x !== null || object.y !== null
                 : !Number.isFinite(object.x) || !Number.isFinite(object.y)) fail(`${label}: неверные координаты.`);
             return { id: object.id, type: object.type, name: name(object.name,label),
                 width: positive(object.width,label), length: positive(object.length,label),
-                rotation: object.rotation, x: object.x, y: object.y, status: object.status };
+                rotation: object.rotation, x: object.x, y: object.y, status: object.status, locked: object.locked ?? false };
         });
         if (!Number.isSafeInteger(data.nextObjectId) || data.nextObjectId <= largestId || data.nextObjectId < 1
             || data.nextObjectId >= Number.MAX_SAFE_INTEGER) fail('Неверный счётчик ID объектов.');

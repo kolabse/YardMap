@@ -124,6 +124,34 @@
     
     <div class="main-container">
         <div class="left-column">
+            <section class="input-section" aria-label="Свойства объекта">
+                <h3>Свойства объекта</h3>
+                <label for="object-select">Объект</label>
+                <select id="object-select"></select>
+                <div id="object-properties" hidden>
+                    <label for="object-name">Название</label><input id="object-name" maxlength="200" aria-describedby="object-properties-error">
+                    <label for="object-width">Ширина (м)</label><input id="object-width" type="number" step="any" min="0" aria-describedby="object-properties-error">
+                    <label for="object-length">Длина (м)</label><input id="object-length" type="number" step="any" min="0" aria-describedby="object-properties-error">
+                    <label for="object-status">Размещение</label><select id="object-status"><option value="waiting">В ожидании</option><option value="placed">На участке</option></select>
+                    <label for="object-x">X от запада (м)</label><input id="object-x" type="number" step="any" aria-describedby="object-properties-error">
+                    <label for="object-y">Y от севера (м)</label><input id="object-y" type="number" step="any" aria-describedby="object-properties-error">
+                    <label for="object-rotation">Поворот</label><select id="object-rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+                    <p id="object-offsets"></p>
+                    <p id="object-properties-error" class="field-error" role="alert"></p>
+                    <button id="apply-object-properties">Применить свойства</button>
+                    <button id="rotate-object">Повернуть на 90°</button>
+                    <button id="copy-object">Копировать в ожидание</button>
+                    <button id="lock-object" class="secondary-button">Закрепить положение</button>
+                    <button id="delete-object" class="secondary-button">Удалить объект</button>
+                    <label for="object-move-step">Шаг стрелок (м)</label><input id="object-move-step" type="number" min="0" step="any" value="0.1">
+                    <p>Выберите объект на плане или в списке. Стрелки перемещают размещённый объект; в полях ввода стрелки работают как обычно.</p>
+                    <div id="object-delete-confirmation" class="confirmation-panel" hidden>
+                        <p id="object-delete-summary"></p>
+                        <button id="confirm-delete-object">Подтвердить удаление</button>
+                        <button id="cancel-delete-object" class="secondary-button">Отмена</button>
+                    </div>
+                </div>
+            </section>
             <div id="building-section" class="input-section" style="display: none;">
                 <h2>Добавление построек</h2>
                 <div>
