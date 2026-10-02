@@ -57,3 +57,14 @@ test('plot changes preserve metre geometry, IDs, borders and waiting state', () 
     assert.equal(placed.status, 'waiting'); assert.equal(placed.x, null); assert.equal(placed.y, null);
     assert.notEqual(placed.id, waiting.id);
 });
+
+test('inside-plot check accepts contact and marks exits at all four sides including rotated footprints', () => {
+    const plot = { width: 20, length: 35 };
+    const object = { x: 0, y: 0, width: 5, length: 6, rotation: 0 };
+    assert.equal(geometry.isInsidePlot(plot, object), true);
+    for (const point of [{x:-0.01,y:0}, {x:0,y:-0.01}, {x:15.01,y:0}, {x:0,y:29.01}]) {
+        assert.equal(geometry.isInsidePlot(plot, {...object,...point}), false);
+    }
+    assert.equal(geometry.isInsidePlot(plot, {...object,x:15,y:29}), true);
+    assert.equal(geometry.isInsidePlot(plot, {...object,x:15,y:29,rotation:90}), false);
+});

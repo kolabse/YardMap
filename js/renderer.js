@@ -19,6 +19,7 @@
             this.renderBorders(project.plot, view);
             this.waitingArea.replaceChildren();
             const liveIds = new Set(project.objects.map(object => object.id));
+            const outsideObjects = [];
             for (const [id, element] of this.elements) {
                 if (!liveIds.has(id)) { element.remove(); this.elements.delete(id); }
             }
@@ -33,10 +34,14 @@
                 const definition = api.definitions[object.type];
                 const size = api.objectSize(object);
                 const waiting = object.status === 'waiting';
+                const outside = !waiting && !api.isInsidePlot(project.plot, object);
+                if (outside) outsideObjects.push(object);
                 element.className = 'building' + (waiting ? ' waiting-building' : '')
+                    + (outside ? ' outside-building' : '')
                     + (object.id === selectedId ? ' selected-building' : '');
                 element.dataset.type = object.type;
                 element.title = `${object.name} ${object.width} × ${object.length} м`;
+                if (outside) element.title += ' — За границами участка';
                 element.setAttribute('aria-label', element.title);
                 element.style.backgroundColor = definition.color;
                 element.style.borderColor = definition.color.replace('0.7', '1');
@@ -61,6 +66,8 @@
                 }
                 element.style.zIndex = object.id === selectedId ? '100' : '10';
             }
+            document.getElementById('outside-warning').textContent = outsideObjects.length
+                ? `За границами участка: ${outsideObjects.length} (${outsideObjects.map(object => object.name).join(', ')}). Объекты сохранены. Увеличьте участок или переместите их.` : '';
             this.renderLegend(project);
             this.renderMeasurements(project, selectedId, view);
             return view;
