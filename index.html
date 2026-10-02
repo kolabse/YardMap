@@ -9,6 +9,20 @@
 <body>
     <h1>ПланДач</h1>
     <h2>Планирование участка в СНТ</h2>
+    <section class="input-section" aria-label="Файл проекта">
+        <label for="project-name">Название проекта</label>
+        <input id="project-name" type="text" maxlength="200" value="Мой участок">
+        <button id="export-project">Скачать JSON</button>
+        <label for="import-project">Открыть JSON</label>
+        <input id="import-project" type="file" accept=".json,application/json">
+        <p id="project-file-status" role="status" aria-live="polite"></p>
+        <div id="import-confirmation" class="confirmation-panel" hidden>
+            <p id="import-summary"></p>
+            <p>Открытие заменит текущий план. Перед заменой можно скачать его JSON.</p>
+            <button id="confirm-import">Заменить текущий план</button>
+            <button id="cancel-import" class="secondary-button">Отмена</button>
+        </div>
+    </section>
 
     <div class="input-section">
         <div class="plot-creation-row">
@@ -161,6 +175,7 @@
 
     <script src="js/catalog.js"></script>
     <script src="js/model.js"></script>
+    <script src="js/project-file.js"></script>
     <script src="js/geometry.js"></script>
     <script src="js/rules.js"></script>
     <script src="js/placement.js"></script>

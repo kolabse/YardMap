@@ -9,7 +9,7 @@
     }
 
     function createProject() {
-        return { version: 1, plot: null, objects: [], nextObjectId: 1 };
+        return { version: 1, name: 'Мой участок', settings: { units: 'm' }, plot: null, objects: [], nextObjectId: 1 };
     }
 
     function setPlot(project, width, length) {

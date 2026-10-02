@@ -6,10 +6,17 @@ let view = null;
 let selectedId = null;
 let highlightedType = null;
 let activeDrag = null;
+let pendingImport = null;
+let importRequest = 0;
 const renderer = new YardMap.Renderer(plotContainer, waitingArea, startDrag, highlightBuildings);
 
 document.getElementById('create-plot').addEventListener('click', createPlot);
 document.getElementById('create-building').addEventListener('click', createBuilding);
+document.getElementById('project-name').addEventListener('input', event => { project.name = event.target.value; });
+document.getElementById('export-project').addEventListener('click', exportProject);
+document.getElementById('import-project').addEventListener('change', readProjectFile);
+document.getElementById('confirm-import').addEventListener('click', confirmProjectImport);
+document.getElementById('cancel-import').addEventListener('click', cancelProjectImport);
 document.getElementById('building-type').addEventListener('change', () => {
     document.getElementById('building-size-controls').style.display = 'block';
     setFieldError('building-type', '');
@@ -42,6 +49,10 @@ function render() {
         document.getElementById('create-plot').textContent = 'Изменить размеры';
         document.getElementById('plot-summary').textContent = `Текущий участок: ${project.plot.width} × ${project.plot.length} м`;
         document.getElementById('new-project').hidden = false;
+    } else {
+        document.getElementById('create-plot').textContent = 'Создать участок';
+        document.getElementById('plot-summary').textContent = '';
+        document.getElementById('new-project').hidden = true;
     }
 }
 
@@ -94,7 +105,9 @@ function confirmNewProject() {
     const dimensions = readDimensions('plot');
     if (!dimensions) return;
     cancelDrag();
+    cancelProjectImport();
     project = YardMap.createProject();
+    document.getElementById('project-name').value = project.name;
     YardMap.setPlot(project, ...dimensions);
     selectedId = null;
     highlightedType = null;
@@ -163,4 +176,67 @@ function cancelDrag() {
 function highlightBuildings(type) {
     highlightedType = type;
     render();
+}
+
+function stageProjectImport(text) {
+    pendingImport = null;
+    document.getElementById('import-confirmation').hidden = true;
+    try {
+        pendingImport = YardMap.parseProject(text);
+        document.getElementById('import-summary').textContent = `Открыть «${pendingImport.name}»: ${pendingImport.plot ? `${pendingImport.plot.width} × ${pendingImport.plot.length} м` : 'без участка'}, объектов: ${pendingImport.objects.length}?`;
+        document.getElementById('import-confirmation').hidden = false;
+        document.getElementById('project-file-status').textContent = 'Файл проверен. Подтвердите замену текущего плана.';
+    } catch (error) {
+        document.getElementById('project-file-status').textContent = error.message;
+    }
+}
+async function readProjectFile(event) {
+    const file = event.target.files[0];
+    cancelProjectImport();
+    if (!file) return;
+    const request = importRequest;
+    document.getElementById('project-file-status').textContent = 'Чтение файла…';
+    try {
+        if (file.size > YardMap.maxProjectFileBytes) throw new Error('Файл проекта слишком большой (максимум 2 МиБ).');
+        const text = await file.text();
+        if (request === importRequest) stageProjectImport(text);
+    } catch (error) {
+        if (request === importRequest) document.getElementById('project-file-status').textContent = `Не удалось открыть файл: ${error.message}`;
+    } finally {
+        if (request === importRequest) event.target.value = '';
+    }
+}
+function cancelProjectImport() {
+    importRequest++;
+    pendingImport = null;
+    document.getElementById('import-confirmation').hidden = true;
+    document.getElementById('project-file-status').textContent = '';
+}
+function confirmProjectImport() {
+    if (!pendingImport) return;
+    cancelDrag();
+    project = pendingImport;
+    cancelProjectImport();
+    selectedId = null; highlightedType = null;
+    document.getElementById('project-name').value = project.name;
+    document.getElementById('new-project-confirmation').hidden = true;
+    for (const side of ['north','east','south','west']) document.getElementById(`${side}-side`).value = project.plot?.borders[side] || '';
+    document.getElementById('plot-width').value = String(project.plot?.width ?? 20);
+    document.getElementById('plot-length').value = String(project.plot?.length ?? 35);
+    for (const id of [...sizeFields,'building-type']) setFieldError(id,'');
+    for (const id of ['building-section','waiting-section','rules-info']) document.getElementById(id).style.display = project.plot ? 'block' : 'none';
+    render();
+    document.getElementById('project-file-status').textContent = `Открыт проект «${project.name}».`;
+}
+function exportProject() {
+    cancelDrag();
+    try {
+        const text = YardMap.serializeProject(project);
+        const url = URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));
+        const link = document.createElement('a');
+        link.href = url; link.download = 'yardmap-project.json';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url),1000);
+        document.getElementById('project-file-status').textContent = 'JSON подготовлен для скачивания. Сохраните файл на устройстве.';
+    } catch (error) { document.getElementById('project-file-status').textContent = error.message; }
 }

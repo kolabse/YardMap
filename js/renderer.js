@@ -21,7 +21,15 @@
         render(project, selectedId, highlightedType) {
             const analysis = api.analyzePlacement(project);
             this.renderPlacementReport(project, analysis);
-            if (!project.plot) { this.renderLegend(project); return null; }
+            this.plot.hidden = !project.plot;
+            if (!project.plot) {
+                this.elements.forEach(element => element.remove()); this.elements.clear();
+                this.waitingArea.replaceChildren();
+                document.querySelectorAll('.distance-line').forEach(element => element.remove());
+                document.querySelectorAll('.plot-border').forEach(element => element.remove());
+                document.getElementById('outside-warning').textContent = '';
+                this.renderLegend(project); return null;
+            }
             const view = api.createView(project.plot, this.container.clientWidth, this.container.clientHeight);
             Object.assign(this.plot.style, {
                 width: project.plot.width * view.scale + 'px', height: project.plot.length * view.scale + 'px',
