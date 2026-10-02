@@ -138,6 +138,71 @@ function memoryStorage(initial = null) {
         setItem(key,value) { if(this.failWrites) throw new Error('Quota exceeded'); this.writes++; data.set(key,value); }
     };
 }
+function savedProject(text) {
+    const data=JSON.parse(text);
+    return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
+}
+
+test('variants copy independently, rename, switch and restore every layout on reload', () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add(); app.place(4,5);
+    assert.equal(app.run('typeof copyVariant'),'function','copy variant action is available');
+    const originalId=app.run('layouts.activeId'),original=JSON.stringify(app.state());
+    app.run('copyVariant()'); const copyId=app.run('layouts.activeId');
+    assert.notEqual(copyId,originalId); app.place(8,9);
+    app.get('project-name').listeners.input({target:{value:'Другой дом'}});
+    app.get('project-name').listeners.change();
+    app.run(`switchVariant(${JSON.stringify(originalId)})`);
+    assert.equal(JSON.stringify(app.state()),original);
+    app.run(`switchVariant(${JSON.stringify(copyId)})`);
+    assert.equal(app.state().name,'Другой дом');
+    const copy=JSON.stringify(app.state());
+    const restored=editor({storage,bootOnly:true});
+    assert.equal(restored.run('layouts.activeId'),copyId);
+    assert.equal(JSON.stringify(restored.state()),copy);
+    restored.run(`switchVariant(${JSON.stringify(originalId)})`);
+    assert.equal(JSON.stringify(restored.state()),original);
+    assert.match(restored.get('active-variant-summary').textContent,/700/);
+    assert.equal(restored.get('variant-select').children.length,2);
+});
+test('variants create blank layouts and delete only after confirmation with export available', async () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add();
+    assert.equal(app.run('typeof createVariant'),'function','new variant action is available');
+    const originalId=app.run('layouts.activeId');
+    app.run('createVariant()'); const emptyId=app.run('layouts.activeId');
+    assert.equal(app.state().objects.length,0); assert.equal(app.state().plot.width,20);
+    app.run(`switchVariant(${JSON.stringify(originalId)}); requestVariantDeletion()`);
+    assert.equal(app.run('layouts.variants.length'),2);
+    app.run('exportProject()');
+    assert.equal(JSON.parse(await app.downloads[0].blob.text()).objects.length,1);
+    app.run('cancelVariantDeletion()'); assert.equal(app.run('layouts.variants.length'),2);
+    app.run('requestVariantDeletion(); confirmVariantDeletion()');
+    assert.equal(app.run('layouts.activeId'),emptyId); assert.equal(app.run('layouts.variants.length'),1);
+    app.run('requestVariantDeletion(); confirmVariantDeletion()');
+    assert.equal(app.run('layouts.variants.length'),1);
+    const restored=editor({storage,bootOnly:true});
+    assert.equal(restored.run('layouts.variants.length'),1);
+});
+test('variants migrate old autosave without rewriting it on startup and preserve it on errors', () => {
+    const old=fs.readFileSync(path.join(__dirname,'../examples/garden.json'),'utf8');
+    const storage=memoryStorage(old),app=editor({storage,bootOnly:true});
+    assert.equal(app.run('typeof layouts'),'object','variant collection is available');
+    assert.equal(app.run('layouts.variants.length'),1); assert.equal(app.state().name,'Сад у озера');
+    assert.equal(storage.getItem('yardmap.project.v1'),old); assert.equal(storage.writes,0);
+    app.run('copyVariant()');
+    assert.equal(editor({storage,bootOnly:true}).run('layouts.variants.length'),2);
+});
+test('variants switching cancels unfinished drag and staged import without changing another layout', () => {
+    const app=editor(); app.add(); app.place(4,5);
+    assert.equal(app.run('typeof copyVariant'),'function','switchable variants are available');
+    const id=app.run('layouts.activeId'); app.run('copyVariant()');
+    const copyId=app.run('layouts.activeId');
+    app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale})');
+    app.run(`stageProjectImport(YardMap.serializeProject(YardMap.createProject())); switchVariant(${JSON.stringify(id)})`);
+    assert.equal(app.run('activeDrag'),null); assert.equal(app.run('pendingImport'),null);
+    assert.equal(app.run('selectedId'),null);
+    app.run(`switchVariant(${JSON.stringify(copyId)})`);
+    assert.ok(Math.abs(app.state().objects[0].x-4)<1e-9);
+});
 
 test('autosave restores completed geometry, borders, names and waiting objects on reload', () => {
     const storage=memoryStorage(), app=editor({storage}); app.add(); app.place(4.25,5.5); app.add();
@@ -156,6 +221,35 @@ test('autosave restores completed geometry, borders, names and waiting objects o
     assert.equal(restored.get('autosave-status').dataset.state,'saved');
 });
 
+// Additional variant checks after the unchanged focused cycle.
+test('active-layout import and new project preserve other variants and failed writes retain all layouts in memory', () => {
+    const storage=memoryStorage(),app=editor({storage}); app.add();
+    const originalId=app.run('layouts.activeId'),original=JSON.stringify(app.state());
+    app.run('copyVariant(); confirmNewProject()');
+    assert.equal(app.state().objects.length,0);
+    app.run(`stageProjectImport(${JSON.stringify(original)}); confirmProjectImport()`);
+    app.run(`switchVariant(${JSON.stringify(originalId)})`);
+    assert.equal(JSON.stringify(app.state()),original);
+    const saved=storage.getItem('yardmap.project.v1');storage.failWrites=true;
+    app.run('copyVariant()');
+    assert.equal(app.run('layouts.variants.length'),3);
+    assert.equal(app.get('autosave-status').dataset.state,'error');
+    assert.equal(storage.getItem('yardmap.project.v1'),saved);
+    storage.failWrites=false;app.run('saveCommittedProject()');
+    assert.equal(editor({storage,bootOnly:true}).run('layouts.variants.length'),3);
+});
+test('invalid layout name prevents switching and switching cancels a stale deletion confirmation', () => {
+    const app=editor();const originalId=app.run('layouts.activeId');app.run('copyVariant()');
+    const copyId=app.run('layouts.activeId');
+    app.get('project-name').listeners.input({target:{value:''}});
+    app.run(`switchVariant(${JSON.stringify(originalId)})`);
+    assert.equal(app.run('layouts.activeId'),copyId);
+    assert.match(app.get('variant-status').textContent,/Название/);
+    app.get('project-name').listeners.input({target:{value:'Копия'}});
+    app.run(`requestVariantDeletion(); switchVariant(${JSON.stringify(originalId)}); confirmVariantDeletion()`);
+    assert.equal(app.run('layouts.variants.length'),2);
+});
+
 test('autosave stores only finished drags and preserves the saved snapshot on cancellation', () => {
     const storage=memoryStorage(), app=editor({storage}); app.add(); app.place(4,5);
     const before=storage.getItem('yardmap.project.v1'), writes=storage.writes;
@@ -163,11 +257,11 @@ test('autosave stores only finished drags and preserves the saved snapshot on ca
     app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale})');
     assert.equal(storage.getItem('yardmap.project.v1'),before); assert.equal(storage.writes,writes);
     const reloaded=editor({storage,bootOnly:true});
-    assert.equal(reloaded.state().objects[0].x,JSON.parse(before).objects[0].x);
+    assert.equal(reloaded.state().objects[0].x,savedProject(before).objects[0].x);
     app.run('cancelDrag()');
     assert.equal(storage.getItem('yardmap.project.v1'),before);
     app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale}); stopDrag()');
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects[0].x,app.state().objects[0].x);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects[0].x,app.state().objects[0].x);
 });
 
 test('autosave protects damaged or unsupported saved data until explicit replacement', () => {
@@ -191,7 +285,7 @@ test('autosave failure leaves editor and JSON export usable and retry can succee
     assert.equal(JSON.parse(await app.downloads[0].blob.text()).objects.length,1);
     storage.failWrites=false; app.run('saveCommittedProject()');
     assert.equal(app.get('autosave-status').dataset.state,'saved');
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,1);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects.length,1);
     const denied=editor({storageAccessError:true}); denied.add();
     assert.equal(denied.state().objects.length,1);
     assert.notEqual(denied.get('autosave-status').dataset.state,'saved');
@@ -204,11 +298,11 @@ test('autosave changes stored project only after new-project or import confirmat
     app.get('new-project').listeners.click(); app.get('cancel-new-project').listeners.click();
     assert.equal(storage.getItem('yardmap.project.v1'),before);
     app.run('confirmNewProject()');
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,0);
-    app.run(`stageProjectImport(${JSON.stringify(before)}); cancelProjectImport()`);
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,0);
-    app.run(`stageProjectImport(${JSON.stringify(before)}); confirmProjectImport()`);
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,1);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects.length,0);
+    app.run(`stageProjectImport(${JSON.stringify(JSON.stringify(savedProject(before)))}); cancelProjectImport()`);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects.length,0);
+    app.run(`stageProjectImport(${JSON.stringify(JSON.stringify(savedProject(before)))}); confirmProjectImport()`);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects.length,1);
 });
 
 // Additional characterization after the focused autosave cycle.
@@ -219,8 +313,8 @@ test('storage writes exclude invalid forms, selection and resize, and preserve a
     assert.equal(storage.writes,writes); assert.equal(storage.getItem('yardmap.project.v1'),before);
     app.run('activeDrag={id:project.objects[0].id,before:{...project.objects[0]},offsetX:0,offsetY:0}; drag({clientX:view.left+8*view.scale,clientY:view.top+9*view.scale})');
     app.add();
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects[0].x,JSON.parse(before).objects[0].x);
-    assert.equal(JSON.parse(storage.getItem('yardmap.project.v1')).objects.length,2);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects[0].x,savedProject(before).objects[0].x);
+    assert.equal(savedProject(storage.getItem('yardmap.project.v1')).objects.length,2);
     assert.equal(app.get('autosave-status').dataset.state,'dirty');
     app.run('cancelDrag()');
     assert.equal(app.get('autosave-status').dataset.state,'saved');
