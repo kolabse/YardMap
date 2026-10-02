@@ -9,8 +9,23 @@
 <body>
     <h1>ПланДач</h1>
     <h2>Планирование участка в СНТ</h2>
+    <section class="input-section" aria-label="Варианты планировки">
+        <label for="variant-select">Вариант планировки</label>
+        <select id="variant-select"></select>
+        <button id="create-variant">Новый вариант</button>
+        <button id="copy-variant">Копировать вариант</button>
+        <button id="delete-variant" class="secondary-button">Удалить вариант</button>
+        <p id="active-variant-summary" role="status"></p>
+        <p id="variant-status" role="status"></p>
+        <div id="variant-delete-confirmation" class="confirmation-panel" hidden>
+            <p id="variant-delete-summary"></p>
+            <p>Удаление нельзя отменить. Перед удалением можно скачать JSON этого варианта кнопкой ниже.</p>
+            <button id="confirm-delete-variant">Удалить выбранный вариант</button>
+            <button id="cancel-delete-variant" class="secondary-button">Отмена</button>
+        </div>
+    </section>
     <section class="input-section" aria-label="Файл проекта">
-        <label for="project-name">Название проекта</label>
+        <label for="project-name">Название варианта</label>
         <input id="project-name" type="text" maxlength="200" value="Мой участок">
         <button id="export-project">Скачать JSON</button>
         <label for="import-project">Открыть JSON</label>
@@ -26,7 +41,7 @@
         </div>
         <div id="import-confirmation" class="confirmation-panel" hidden>
             <p id="import-summary"></p>
-            <p>Открытие заменит текущий план и его сохранённую запись в этом браузере. Перед заменой можно скачать его JSON.</p>
+            <p>Открытие заменит активный вариант. Другие варианты сохранятся. Перед заменой можно скачать JSON активного варианта.</p>
             <button id="confirm-import">Заменить текущий план</button>
             <button id="cancel-import" class="secondary-button">Отмена</button>
         </div>
@@ -50,7 +65,7 @@
                     <p id="plot-summary" role="status"></p>
                     <button id="new-project" class="secondary-button" hidden>Новый проект</button>
                     <div id="new-project-confirmation" class="confirmation-panel" hidden>
-                        <p>Новый проект очистит все объекты и границы текущего плана и заменит его сохранённую запись в этом браузере. Перед заменой можно скачать JSON. Размеры нового участка задайте в полях выше.</p>
+                        <p>Новый проект очистит активный вариант; остальные варианты сохранятся. Перед заменой можно скачать его JSON. Размеры нового участка задайте в полях выше.</p>
                         <button id="confirm-new-project">Создать новый проект</button>
                         <button id="cancel-new-project" class="secondary-button">Продолжить текущий</button>
                     </div>
@@ -184,6 +199,7 @@
     <script src="js/catalog.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
+    <script src="js/variants.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/geometry.js"></script>
     <script src="js/rules.js"></script>

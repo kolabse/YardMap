@@ -1,5 +1,7 @@
 // UI/controller state is deliberately separate from serializable project data.
 let project = YardMap.createProject();
+let layouts = YardMap.createLayoutCollection(project);
+let pendingVariantDeletion = null;
 const plotContainer = document.querySelector('.plot-container');
 const waitingArea = document.getElementById('waiting-area');
 let view = null;
@@ -15,8 +17,15 @@ const renderer = new YardMap.Renderer(plotContainer, waitingArea, startDrag, hig
 
 document.getElementById('create-plot').addEventListener('click', createPlot);
 document.getElementById('create-building').addEventListener('click', createBuilding);
+document.getElementById('variant-select').addEventListener('change', event => switchVariant(event.target.value));
+document.getElementById('create-variant').addEventListener('click', createVariant);
+document.getElementById('copy-variant').addEventListener('click', copyVariant);
+document.getElementById('delete-variant').addEventListener('click', requestVariantDeletion);
+document.getElementById('confirm-delete-variant').addEventListener('click', confirmVariantDeletion);
+document.getElementById('cancel-delete-variant').addEventListener('click', cancelVariantDeletion);
 document.getElementById('project-name').addEventListener('input', event => {
     project.name = event.target.value;
+    renderVariants();
     if (!storageBlocked) setSaveStatus('dirty','Название изменено. Сохранение — после завершения ввода.');
 });
 document.getElementById('project-name').addEventListener('change', saveCommittedProject);
@@ -61,6 +70,7 @@ restoreSavedProject();
 render();
 
 function render() {
+    renderVariants();
     view = renderer.render(project, selectedId, highlightedType);
     if (project.plot) {
         document.getElementById('create-plot').textContent = 'Изменить размеры';
@@ -126,6 +136,8 @@ function confirmNewProject() {
     cancelDrag();
     cancelProjectImport();
     project = YardMap.createProject();
+    layouts.variants.find(item => item.id === layouts.activeId).project = project;
+    cancelVariantDeletion();
     document.getElementById('project-name').value = project.name;
     YardMap.setPlot(project, ...dimensions);
     selectedId = null;
@@ -241,6 +253,8 @@ function confirmProjectImport() {
     if (!pendingImport) return;
     cancelDrag();
     project = pendingImport;
+    layouts.variants.find(item => item.id === layouts.activeId).project = project;
+    cancelVariantDeletion();
     cancelProjectImport();
     selectedId = null; highlightedType = null;
     syncProjectFields();
@@ -285,6 +299,7 @@ function setSaveStatus(state,text) {
 function restoreSavedProject() {
     const result = projectStore.load();
     if (result.state === 'loaded') {
+        layouts = result.layouts;
         project = result.project;
         syncProjectFields();
         setSaveStatus('saved','Проект восстановлен из хранилища этого браузера.');
@@ -298,7 +313,9 @@ function saveCommittedProject() {
     // Other completed edits may occur during a drag; persist its starting footprint.
     const snapshot = activeDrag ? { ...project, objects: project.objects.map(object =>
         object.id === activeDrag.id ? activeDrag.before : object) } : project;
-    const result = projectStore.save(snapshot);
+    const storedLayouts = { ...layouts, variants: layouts.variants.map(item =>
+        item.id === layouts.activeId ? { ...item, project: snapshot } : item) };
+    const result = projectStore.save(storedLayouts);
     if (result.ok) {
         setSaveStatus('saved','Сохранено в этом браузере.');
         if (activeDrag) showSaveStatus('dirty','Завершённые изменения сохранены. Текущее перемещение сохранится после отпускания мыши.');
@@ -310,4 +327,79 @@ function confirmStorageReplacement() {
     storageBlocked = false;
     document.getElementById('storage-replacement-confirmation').hidden = true;
     saveCommittedProject();
+}
+
+function renderVariants() {
+    const select = document.getElementById('variant-select');
+    select.replaceChildren();
+    for (const variant of layouts.variants) {
+        const plan = variant.id === layouts.activeId ? project : variant.project;
+        const option = document.createElement('option'); option.value = variant.id;
+        const area = plan.plot ? `${Number((plan.plot.width * plan.plot.length).toFixed(2))} м²` : 'без участка';
+        option.textContent = `${plan.name} — объектов: ${plan.objects.length}, ${area}`;
+        select.appendChild(option);
+        if (variant.id === layouts.activeId) document.getElementById('active-variant-summary').textContent = `Активный вариант: ${option.textContent}`;
+    }
+    select.value = layouts.activeId;
+    document.getElementById('delete-variant').disabled = layouts.variants.length <= 1;
+    for (const id of ['create-variant','copy-variant']) document.getElementById(id).disabled = layouts.variants.length >= YardMap.maxVariants;
+}
+function prepareVariantChange() {
+    cancelDrag();
+    try { YardMap.serializeProject(project); }
+    catch (error) {
+        document.getElementById('variant-status').textContent = error.message;
+        renderVariants(); return false;
+    }
+    cancelProjectImport(); cancelVariantDeletion();
+    document.getElementById('variant-status').textContent = '';
+    document.getElementById('new-project-confirmation').hidden = true;
+    return true;
+}
+function switchVariant(id) {
+    const variant = layouts.variants.find(item => item.id === id);
+    if (!variant || id === layouts.activeId || !prepareVariantChange()) return;
+    layouts.activeId = id; project = variant.project;
+    selectedId = null; highlightedType = null;
+    syncProjectFields(); render(); saveCommittedProject();
+}
+function addVariant(plan) {
+    const id = `variant-${layouts.nextVariantId++}`;
+    layouts.variants.push({ id, project: plan }); layouts.activeId = id; project = plan;
+    selectedId = null; highlightedType = null;
+    syncProjectFields(); render(); saveCommittedProject();
+}
+function createVariant() {
+    if (layouts.variants.length >= YardMap.maxVariants || !prepareVariantChange()) return;
+    const plan = YardMap.createProject();
+    plan.name = `Вариант ${layouts.nextVariantId}`;
+    plan.plot = project.plot ? JSON.parse(JSON.stringify(project.plot)) : null;
+    plan.settings = { ...project.settings };
+    addVariant(plan);
+}
+function copyVariant() {
+    if (layouts.variants.length >= YardMap.maxVariants || !prepareVariantChange()) return;
+    const plan = YardMap.cloneProject(project);
+    plan.name = project.name.slice(0,190) + ' (копия)';
+    addVariant(plan);
+}
+function requestVariantDeletion() {
+    if (layouts.variants.length <= 1) return;
+    cancelDrag();
+    pendingVariantDeletion = layouts.activeId;
+    document.getElementById('variant-delete-summary').textContent = `Удалить вариант «${project.name}» (${project.objects.length} объектов)?`;
+    document.getElementById('variant-delete-confirmation').hidden = false;
+}
+function cancelVariantDeletion() {
+    pendingVariantDeletion = null;
+    document.getElementById('variant-delete-confirmation').hidden = true;
+}
+function confirmVariantDeletion() {
+    if (pendingVariantDeletion !== layouts.activeId || layouts.variants.length <= 1) return;
+    cancelDrag(); cancelProjectImport();
+    layouts.variants = layouts.variants.filter(item => item.id !== pendingVariantDeletion);
+    cancelVariantDeletion();
+    layouts.activeId = layouts.variants[0].id; project = layouts.variants[0].project;
+    selectedId = null; highlightedType = null;
+    syncProjectFields(); render(); saveCommittedProject();
 }
