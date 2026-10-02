@@ -8,11 +8,26 @@ let highlightedType = null;
 let activeDrag = null;
 let pendingImport = null;
 let importRequest = 0;
+const projectStore = YardMap.createProjectStore(() => window.localStorage);
+let storageBlocked = false;
+let committedSaveStatus = { state: 'empty', text: 'Сохранённого проекта пока нет.' };
 const renderer = new YardMap.Renderer(plotContainer, waitingArea, startDrag, highlightBuildings);
 
 document.getElementById('create-plot').addEventListener('click', createPlot);
 document.getElementById('create-building').addEventListener('click', createBuilding);
-document.getElementById('project-name').addEventListener('input', event => { project.name = event.target.value; });
+document.getElementById('project-name').addEventListener('input', event => {
+    project.name = event.target.value;
+    if (!storageBlocked) setSaveStatus('dirty','Название изменено. Сохранение — после завершения ввода.');
+});
+document.getElementById('project-name').addEventListener('change', saveCommittedProject);
+document.getElementById('retry-autosave').addEventListener('click', saveCommittedProject);
+document.getElementById('replace-stored-project').addEventListener('click', () => {
+    document.getElementById('storage-replacement-confirmation').hidden = false;
+});
+document.getElementById('confirm-storage-replacement').addEventListener('click', confirmStorageReplacement);
+document.getElementById('cancel-storage-replacement').addEventListener('click', () => {
+    document.getElementById('storage-replacement-confirmation').hidden = true;
+});
 document.getElementById('export-project').addEventListener('click', exportProject);
 document.getElementById('import-project').addEventListener('change', readProjectFile);
 document.getElementById('confirm-import').addEventListener('click', confirmProjectImport);
@@ -36,11 +51,13 @@ for (const side of ['north', 'east', 'south', 'west']) {
     document.getElementById(`${side}-side`).addEventListener('change', event => {
         YardMap.setBorder(project, side, event.target.value);
         render();
+        if (project.plot) saveCommittedProject();
     });
 }
 window.addEventListener('resize', render);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(render).observe(plotContainer);
 window.addEventListener('blur', cancelDrag);
+restoreSavedProject();
 render();
 
 function render() {
@@ -88,6 +105,7 @@ function createPlot() {
     document.getElementById('rules-info').style.display = 'block';
     document.getElementById('waiting-section').style.display = 'block';
     render();
+    saveCommittedProject();
 }
 
 function createBuilding() {
@@ -99,6 +117,7 @@ function createBuilding() {
     const object = YardMap.addObject(project, type, ...dimensions);
     selectedId = object.id;
     render();
+    saveCommittedProject();
 }
 
 function confirmNewProject() {
@@ -121,6 +140,9 @@ function confirmNewProject() {
     for (const id of [...sizeFields, 'building-type']) setFieldError(id, '');
     document.getElementById('new-project-confirmation').hidden = true;
     render();
+    storageBlocked = false;
+    document.getElementById('storage-replacement-confirmation').hidden = true;
+    saveCommittedProject();
 }
 
 function startDrag(event) {
@@ -150,6 +172,7 @@ function drag(event) {
     }, view);
     YardMap.placeObject(project, activeDrag.id, point.x - activeDrag.offsetX, point.y - activeDrag.offsetY);
     render();
+    if (!storageBlocked) showSaveStatus('dirty','Перемещение не сохранено. Отпустите мышь для сохранения.');
 }
 
 function stopDrag() {
@@ -162,6 +185,7 @@ function stopDrag() {
     document.removeEventListener('mousemove', drag);
     document.removeEventListener('mouseup', stopDrag);
     render();
+    saveCommittedProject();
 }
 
 function cancelDrag() {
@@ -171,6 +195,7 @@ function cancelDrag() {
     document.removeEventListener('mousemove', drag);
     document.removeEventListener('mouseup', stopDrag);
     render();
+    showSaveStatus(committedSaveStatus.state,committedSaveStatus.text);
 }
 
 function highlightBuildings(type) {
@@ -218,6 +243,14 @@ function confirmProjectImport() {
     project = pendingImport;
     cancelProjectImport();
     selectedId = null; highlightedType = null;
+    syncProjectFields();
+    render();
+    storageBlocked = false;
+    document.getElementById('storage-replacement-confirmation').hidden = true;
+    saveCommittedProject();
+    document.getElementById('project-file-status').textContent = `Открыт проект «${project.name}».`;
+}
+function syncProjectFields() {
     document.getElementById('project-name').value = project.name;
     document.getElementById('new-project-confirmation').hidden = true;
     for (const side of ['north','east','south','west']) document.getElementById(`${side}-side`).value = project.plot?.borders[side] || '';
@@ -225,8 +258,6 @@ function confirmProjectImport() {
     document.getElementById('plot-length').value = String(project.plot?.length ?? 35);
     for (const id of [...sizeFields,'building-type']) setFieldError(id,'');
     for (const id of ['building-section','waiting-section','rules-info']) document.getElementById(id).style.display = project.plot ? 'block' : 'none';
-    render();
-    document.getElementById('project-file-status').textContent = `Открыт проект «${project.name}».`;
 }
 function exportProject() {
     cancelDrag();
@@ -239,4 +270,44 @@ function exportProject() {
         setTimeout(() => URL.revokeObjectURL(url),1000);
         document.getElementById('project-file-status').textContent = 'JSON подготовлен для скачивания. Сохраните файл на устройстве.';
     } catch (error) { document.getElementById('project-file-status').textContent = error.message; }
+}
+
+function showSaveStatus(state,text) {
+    const status = document.getElementById('autosave-status');
+    status.dataset.state = state; status.textContent = text;
+    document.getElementById('retry-autosave').hidden = state !== 'error';
+    document.getElementById('replace-stored-project').hidden = !storageBlocked;
+}
+function setSaveStatus(state,text) {
+    committedSaveStatus = { state,text };
+    showSaveStatus(state,text);
+}
+function restoreSavedProject() {
+    const result = projectStore.load();
+    if (result.state === 'loaded') {
+        project = result.project;
+        syncProjectFields();
+        setSaveStatus('saved','Проект восстановлен из хранилища этого браузера.');
+    } else if (result.state === 'blocked') {
+        storageBlocked = true;
+        setSaveStatus('blocked',`Сохранённый проект не удалось открыть: ${result.error} Автосохранение приостановлено; прежняя запись сохранена до подтверждения замены.`);
+    } else setSaveStatus('empty','Сохранённого проекта пока нет. Изменения будут сохраняться в этом браузере.');
+}
+function saveCommittedProject() {
+    if (storageBlocked) return;
+    // Other completed edits may occur during a drag; persist its starting footprint.
+    const snapshot = activeDrag ? { ...project, objects: project.objects.map(object =>
+        object.id === activeDrag.id ? activeDrag.before : object) } : project;
+    const result = projectStore.save(snapshot);
+    if (result.ok) {
+        setSaveStatus('saved','Сохранено в этом браузере.');
+        if (activeDrag) showSaveStatus('dirty','Завершённые изменения сохранены. Текущее перемещение сохранится после отпускания мыши.');
+    }
+    else setSaveStatus('error',`Не удалось сохранить проект: ${result.error} Изменения доступны в редакторе; скачайте JSON или повторите сохранение.`);
+}
+function confirmStorageReplacement() {
+    cancelDrag();
+    storageBlocked = false;
+    document.getElementById('storage-replacement-confirmation').hidden = true;
+    saveCommittedProject();
 }

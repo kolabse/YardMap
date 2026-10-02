@@ -3,6 +3,8 @@
     --border-thickness: 30px;
 }
 
+#autosave-status[data-state="error"], #autosave-status[data-state="blocked"] { color: #a32620; }
+
 body {
     font-family: Arial, sans-serif;
     max-width: 1200px;

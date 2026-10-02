@@ -16,9 +16,17 @@
         <label for="import-project">Открыть JSON</label>
         <input id="import-project" type="file" accept=".json,application/json">
         <p id="project-file-status" role="status" aria-live="polite"></p>
+        <p id="autosave-status" role="status" aria-live="polite"></p>
+        <button id="retry-autosave" class="secondary-button" hidden>Повторить сохранение</button>
+        <button id="replace-stored-project" class="secondary-button" hidden>Заменить сохранённую запись</button>
+        <div id="storage-replacement-confirmation" class="confirmation-panel" hidden>
+            <p>Сохранённую запись не удалось открыть. Заменить её текущим планом? Прежняя запись будет перезаписана. Текущий план можно предварительно скачать в JSON.</p>
+            <button id="confirm-storage-replacement">Сохранить текущий план вместо прежней записи</button>
+            <button id="cancel-storage-replacement" class="secondary-button">Отмена</button>
+        </div>
         <div id="import-confirmation" class="confirmation-panel" hidden>
             <p id="import-summary"></p>
-            <p>Открытие заменит текущий план. Перед заменой можно скачать его JSON.</p>
+            <p>Открытие заменит текущий план и его сохранённую запись в этом браузере. Перед заменой можно скачать его JSON.</p>
             <button id="confirm-import">Заменить текущий план</button>
             <button id="cancel-import" class="secondary-button">Отмена</button>
         </div>
@@ -42,7 +50,7 @@
                     <p id="plot-summary" role="status"></p>
                     <button id="new-project" class="secondary-button" hidden>Новый проект</button>
                     <div id="new-project-confirmation" class="confirmation-panel" hidden>
-                        <p>Новый проект очистит все объекты и границы текущего плана. Размеры нового участка задайте в полях выше.</p>
+                        <p>Новый проект очистит все объекты и границы текущего плана и заменит его сохранённую запись в этом браузере. Перед заменой можно скачать JSON. Размеры нового участка задайте в полях выше.</p>
                         <button id="confirm-new-project">Создать новый проект</button>
                         <button id="cancel-new-project" class="secondary-button">Продолжить текущий</button>
                     </div>
@@ -176,6 +184,7 @@
     <script src="js/catalog.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
+    <script src="js/storage.js"></script>
     <script src="js/geometry.js"></script>
     <script src="js/rules.js"></script>
     <script src="js/placement.js"></script>
