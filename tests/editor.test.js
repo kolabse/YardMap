@@ -32,6 +32,9 @@ function editor(options = {}) {
         }
         addEventListener(type, fn) { this.listeners[type] = fn; }
         removeEventListener(type) { delete this.listeners[type]; }
+        setPointerCapture(id) { this.capturedPointer = id; }
+        hasPointerCapture(id) { return this.capturedPointer === id; }
+        releasePointerCapture(id) { if(this.capturedPointer===id)this.capturedPointer=null; }
         setAttribute(name, value) { this[name] = value; }
         click() { downloads.push({ filename: this.download, blob: blobs.get(this.href) }); }
         appendChild(child) {
@@ -89,7 +92,8 @@ function editor(options = {}) {
             ? selector.split(',').map(s => get(s.trim().slice(1)))
             : all().filter(el => el.classList.contains(selector.slice(1))),
         createElement: tag => new Element(tag),
-        addEventListener() {}, removeEventListener() {}
+        listeners: {},
+        addEventListener(type,fn) { this.listeners[type]=fn; }, removeEventListener(type) { delete this.listeners[type]; }
     };
     const alerts = [];
     const storage = options.storage || memoryStorage();
@@ -142,6 +146,78 @@ function savedProject(text) {
     const data=JSON.parse(text);
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
+
+test('pointer gestures capture touch on stable canvas and commit one completed movement', () => {
+    const storage=memoryStorage(),app=editor({storage});app.add();
+    assert.equal(app.run('typeof renderer.elements.get(selectedId).listeners.pointerdown'),'function','pointer input is wired');
+    const beforeCounts=app.run('history.counts().undo'),writes=storage.writes;
+    app.run(`el=renderer.elements.get(selectedId);r=el.getBoundingClientRect();
+        el.listeners.pointerdown({button:0,pointerType:'touch',pointerId:7,isPrimary:true,currentTarget:el,clientX:r.left,clientY:r.top,preventDefault(){}})`);
+    assert.equal(app.get('container').capturedPointer,7);
+    app.run(`target=YardMap.toScreen({x:4,y:5},view);document.listeners.pointermove({pointerId:7,clientX:target.x,clientY:target.y});
+        document.listeners.pointermove({pointerId:7,clientX:target.x,clientY:target.y})`);
+    assert.equal(storage.writes,writes);
+    app.run('document.listeners.pointerup({pointerId:7})');
+    assert.equal(app.run('activeDrag'),null);assert.equal(app.get('container').capturedPointer,null);
+    assert.equal(app.run('history.counts().undo'),beforeCounts+1);
+    assert.ok(Math.abs(app.state().objects[0].x-4)<1e-9);
+    assert.equal(savedProject(storage.data.get('yardmap.project.v1')).objects[0].status,'placed');
+});
+
+test('pointer gestures cancel on pointercancel and lost capture without changing history or save', () => {
+    const storage=memoryStorage(),app=editor({storage});app.add();app.place(4,5);
+    assert.equal(app.run('typeof cancelPointerGesture'),'function','pointer cancellation is available');
+    const before=JSON.stringify(app.state()),counts=app.run('JSON.stringify(history.counts())'),writes=storage.writes;
+    for(const kind of ['pointercancel','lostpointercapture']) {
+        app.run(`el=renderer.elements.get(selectedId);startDrag({button:0,pointerId:7,isPrimary:true,currentTarget:el,clientX:0,clientY:0,preventDefault(){}});
+            drag({pointerId:7,clientX:250,clientY:200});`);
+        if(kind==='pointercancel')app.run('document.listeners.pointercancel({pointerId:7})');
+        else app.get('container').listeners.lostpointercapture({pointerId:7});
+        assert.equal(JSON.stringify(app.state()),before);assert.equal(app.run('activeDrag'),null);
+        assert.equal(app.run('JSON.stringify(history.counts())'),counts);assert.equal(storage.writes,writes);
+    }
+});
+
+test('pointer gestures ignore other pointers and non-primary input throughout gesture', () => {
+    const app=editor();app.add();assert.equal(app.run('typeof cancelPointerGesture'),'function','pointer ownership is available');
+    app.run(`el=renderer.elements.get(selectedId);startDrag({button:0,pointerId:8,isPrimary:false,currentTarget:el,clientX:0,clientY:0,preventDefault(){}})`);
+    assert.equal(app.run('activeDrag'),null);
+    app.run(`startDrag({button:0,pointerId:7,isPrimary:true,currentTarget:el,clientX:0,clientY:0,preventDefault(){}})`);
+    const before=JSON.stringify(app.state());
+    app.run(`drag({pointerId:8,clientX:250,clientY:200});stopDrag({pointerId:8});cancelPointerGesture({pointerId:8})`);
+    assert.equal(JSON.stringify(app.state()),before);assert.notEqual(app.run('activeDrag'),null);
+    app.run('cancelPointerGesture({pointerId:7})');assert.equal(app.run('activeDrag'),null);
+});
+
+test('pointer gestures pan with touch and restore view on interruption without model changes', () => {
+    const app=editor();assert.equal(app.run('typeof cancelPointerGesture'),'function','pan cancellation is available');
+    const before=JSON.stringify(app.state()),left=app.run('view.left');
+    app.run(`viewState.panMode=true;startPan({button:0,pointerId:7,isPrimary:true,clientX:100,clientY:100,preventDefault(){}});
+        movePan({pointerId:7,clientX:150,clientY:120})`);
+    assert.equal(app.run('view.left'),left+50);
+    app.run('cancelPointerGesture({pointerId:7})');assert.equal(app.run('view.left'),left);
+    assert.equal(JSON.stringify(app.state()),before);assert.equal(app.run('activePan'),null);
+});
+
+test('pointer capture failure restores data and clears gesture listeners', () => {
+    const app=editor();app.add();const before=JSON.stringify(app.state());
+    app.get('container').setPointerCapture=()=>{throw new Error('Capture failed');};
+    app.run(`el=renderer.elements.get(selectedId);startDrag({button:0,pointerId:7,isPrimary:true,currentTarget:el,clientX:0,clientY:0,preventDefault(){}})`);
+    assert.equal(app.run('activeDrag'),null);assert.equal(JSON.stringify(app.state()),before);
+    assert.equal(app.run('typeof document.listeners.pointermove'),'undefined');
+    app.run(`viewState.panMode=true;startPan({button:0,pointerId:7,isPrimary:true,clientX:0,clientY:0,preventDefault(){}})`);
+    assert.equal(app.run('activePan'),null);assert.equal(app.run('typeof document.listeners.pointerup'),'undefined');
+});
+
+test('pointer tap preserves waiting state and completed release ignores subsequent capture loss', () => {
+    const app=editor();app.add();const count=app.run('history.counts().undo');
+    app.run(`el=renderer.elements.get(selectedId);r=el.getBoundingClientRect();startDrag({button:0,pointerId:7,isPrimary:true,currentTarget:el,clientX:r.left,clientY:r.top,preventDefault(){}});stopDrag({pointerId:7});cancelPointerGesture({pointerId:7})`);
+    assert.equal(app.state().objects[0].status,'waiting');assert.equal(app.run('history.counts().undo'),count);
+    app.run(`startDrag({button:0,pointerId:7,isPrimary:true,currentTarget:el,clientX:r.left,clientY:r.top,preventDefault(){}});
+        target=YardMap.toScreen({x:4,y:5},view);drag({pointerId:7,clientX:target.x,clientY:target.y});stopDrag({pointerId:7})`);
+    const before=JSON.stringify(app.state());app.run('cancelPointerGesture({pointerId:7})');
+    assert.equal(JSON.stringify(app.state()),before);assert.equal(app.run('history.counts().undo'),count+1);
+});
 
 test('view controls zoom and pan without changing geometry, history or storage', () => {
     const storage=memoryStorage(),app=editor({storage});app.add();app.place(4,5);

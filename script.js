@@ -33,7 +33,8 @@ for (const [id,dx,dy] of [['pan-left',-50,0],['pan-right',50,0],['pan-up',0,-50]
     document.getElementById(id).addEventListener('click',()=>panView(dx,dy));
 }
 document.getElementById('apply-view-settings').addEventListener('click',applyViewSettings);
-plotContainer.addEventListener('mousedown',startPan);
+plotContainer.addEventListener('pointerdown',startPan);
+plotContainer.addEventListener('lostpointercapture',cancelPointerGesture);
 document.getElementById('grid-step').value=String(viewState.step);
 document.getElementById('grid-visible').checked=viewState.gridVisible;
 document.getElementById('snap-enabled').checked=viewState.snapEnabled;
@@ -106,7 +107,8 @@ for (const side of ['north', 'east', 'south', 'west']) {
 }
 window.addEventListener('resize',resizeView);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resizeView).observe(plotContainer);
-window.addEventListener('blur',()=>{cancelDrag();stopPan();});
+window.addEventListener('blur',()=>cancelPointerGesture());
+document.addEventListener('keydown',event=>{if(event.key==='Escape')cancelPointerGesture();});
 restoreSavedProject();
 history.reset(project);
 render();
@@ -160,6 +162,7 @@ function createPlot() {
     document.getElementById('building-section').style.display = 'block';
     document.getElementById('rules-info').style.display = 'block';
     document.getElementById('waiting-section').style.display = 'block';
+    document.getElementById('plot-settings').open=false;
     render();
     saveCommittedProject();
 }
@@ -205,7 +208,7 @@ function confirmNewProject() {
 }
 
 function startDrag(event) {
-    if (event.button !== 0 || !view) return;
+    if (event.button !== 0 || event.isPrimary===false || !view || activeDrag || activePan) return;
     if (viewState.panMode) return;
     const id = event.currentTarget.dataset.id;
     const object = project.objects.find(item => item.id === id);
@@ -216,18 +219,22 @@ function startDrag(event) {
     const rect = event.currentTarget.getBoundingClientRect();
     const size = YardMap.objectSize(object);
     activeDrag = {
-        id, before: { ...object },
+        id, before: { ...object }, pointerId:event.pointerId ?? null,
         offsetX: (event.clientX - rect.left) / rect.width * size.width,
         offsetY: (event.clientY - rect.top) / rect.height * size.length
     };
     selectedId = id;
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('pointermove', drag);
+    document.addEventListener('pointerup', stopDrag);
+    document.addEventListener('pointercancel',cancelPointerGesture);
+    capturePointer(activeDrag.pointerId);
+    if(!activeDrag)return;
+    document.getElementById('interaction-status').textContent='Перенос объекта. Отпустите указатель для сохранения; Escape — отмена.';
     event.preventDefault();
 }
 
 function drag(event) {
-    if (!activeDrag || !view) return;
+    if (!activeDrag || !ownsPointer(activeDrag,event) || !view) return;
     const containerRect = plotContainer.getBoundingClientRect();
     const point = YardMap.toMetres({
         x: event.clientX - containerRect.left - (plotContainer.clientLeft || 0),
@@ -241,32 +248,41 @@ function drag(event) {
     if (!storageBlocked) showSaveStatus('dirty','Перемещение не сохранено. Отпустите мышь для сохранения.');
 }
 
-function stopDrag() {
-    if (!activeDrag) return;
+function stopDrag(event) {
+    if (!activeDrag || !ownsPointer(activeDrag,event)) return;
+    const pointerId=activeDrag.pointerId;
     const object = project.objects.find(item => item.id === activeDrag.id);
     if (object.status === 'placed' && !YardMap.touchesPlot(project.plot, object)) {
         YardMap.returnToWaiting(project, object.id);
     }
     activeDrag = null;
-    document.removeEventListener('mousemove', drag);
-    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('pointermove', drag);
+    document.removeEventListener('pointerup', stopDrag);
+    document.removeEventListener('pointercancel',cancelPointerGesture);
+    releasePointer(pointerId);
     render();
     saveCommittedProject();
+    document.getElementById('interaction-status').textContent='Перенос завершён.';
 }
 
 function cancelDrag() {
     if (!activeDrag) return;
+    const pointerId=activeDrag.pointerId;
     Object.assign(project.objects.find(item => item.id === activeDrag.id), activeDrag.before);
     activeDrag = null;
-    document.removeEventListener('mousemove', drag);
-    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('pointermove', drag);
+    document.removeEventListener('pointerup', stopDrag);
+    document.removeEventListener('pointercancel',cancelPointerGesture);
+    releasePointer(pointerId);
     render();
     showSaveStatus(committedSaveStatus.state,committedSaveStatus.text);
+    document.getElementById('interaction-status').textContent='Перенос отменён. Исходное положение восстановлено.';
 }
 
 function highlightBuildings(type) {
     highlightedType = type;
     render();
+    document.querySelector(`.legend-item[data-type="${type}"]`)?.focus?.();
 }
 
 function stageProjectImport(text) {
@@ -320,6 +336,7 @@ function confirmProjectImport() {
     document.getElementById('project-file-status').textContent = `Открыт проект «${project.name}».`;
 }
 function syncProjectFields() {
+    document.getElementById('plot-settings').open=!project.plot;
     stopPan();viewState.zoom=1;viewState.panX=0;viewState.panY=0;
     objectPanelId = null; objectPanelDirty = false; cancelObjectDeletion();
     document.getElementById('project-name').value = project.name;
@@ -502,16 +519,40 @@ function applyViewSettings() {
     } catch(error) { document.getElementById('view-error').textContent=error.message; }
 }
 function startPan(event) {
-    if(!view || !viewState.panMode || event.button!==0 || activePan)return;
-    cancelDrag();activePan={x:event.clientX,y:event.clientY,panX:viewState.panX,panY:viewState.panY};
-    document.addEventListener('mousemove',movePan);document.addEventListener('mouseup',stopPan);event.preventDefault();
+    if(!view || !viewState.panMode || event.button!==0 || event.isPrimary===false || activePan || activeDrag)return;
+    activePan={x:event.clientX,y:event.clientY,panX:viewState.panX,panY:viewState.panY,pointerId:event.pointerId ?? null};
+    document.addEventListener('pointermove',movePan);document.addEventListener('pointerup',stopPan);
+    document.addEventListener('pointercancel',cancelPointerGesture);capturePointer(activePan.pointerId);event.preventDefault();
+    if(!activePan)return;
+    document.getElementById('interaction-status').textContent='Перемещение вида. Escape — отмена.';
 }
 function movePan(event) {
-    if(!activePan)return;
+    if(!activePan || !ownsPointer(activePan,event))return;
     viewState.panX=activePan.panX+event.clientX-activePan.x;viewState.panY=activePan.panY+event.clientY-activePan.y;render();
 }
-function stopPan() {
-    activePan=null;document.removeEventListener('mousemove',movePan);document.removeEventListener('mouseup',stopPan);
+function stopPan(event) {
+    if(!activePan || !ownsPointer(activePan,event))return;
+    const pointerId=activePan.pointerId;activePan=null;
+    document.removeEventListener('pointermove',movePan);document.removeEventListener('pointerup',stopPan);
+    document.removeEventListener('pointercancel',cancelPointerGesture);releasePointer(pointerId);
+    document.getElementById('interaction-status').textContent='Перемещение вида завершено.';
+}
+function ownsPointer(gesture,event) { return !event || event.pointerId===undefined || gesture.pointerId===null || gesture.pointerId===event.pointerId; }
+function capturePointer(id) {
+    if(id===null)return;
+    try { plotContainer.setPointerCapture(id); }
+    catch { cancelPointerGesture({pointerId:id}); }
+}
+function releasePointer(id) {
+    if(id===null)return;
+    try { if(plotContainer.hasPointerCapture(id))plotContainer.releasePointerCapture(id); } catch { /* Capture may already have been lost. */ }
+}
+function cancelPointerGesture(event) {
+    if(activeDrag && ownsPointer(activeDrag,event))cancelDrag();
+    if(activePan && ownsPointer(activePan,event)) {
+        viewState.panX=activePan.panX;viewState.panY=activePan.panY;stopPan();render();
+        document.getElementById('interaction-status').textContent='Перемещение вида отменено.';
+    }
 }
 function renderHistory() {
     const counts = history.counts();
@@ -544,6 +585,7 @@ function selectObject(id) {
     cancelDrag(); cancelObjectDeletion();
     selectedId = project.objects.some(object=>object.id===id) ? id : null;
     objectPanelDirty=false; objectPanelId=null;
+    document.getElementById('object-panel').open=true;
     render();
     renderer.elements.get(selectedId)?.focus?.();
 }
