@@ -38,6 +38,8 @@
             this.plot.style.backgroundImage = viewState.gridVisible && gridPixels >= 4
                 ? 'linear-gradient(to right, #90a4ae66 1px, transparent 1px), linear-gradient(to bottom, #90a4ae66 1px, transparent 1px)' : 'none';
             this.plot.style.backgroundSize = `${gridPixels}px ${gridPixels}px`;
+            this.plot.classList.toggle('polygon-plot',project.plot.kind==='polygon');
+            this.plot.style.clipPath=project.plot.kind==='polygon'?`polygon(${project.plot.vertices.map(v=>`${v.x/project.plot.width*100}% ${v.y/project.plot.length*100}%`).join(',')})`:'';
             Object.assign(this.plot.style, {
                 width: project.plot.width * view.scale + 'px', height: project.plot.length * view.scale + 'px',
                 left: view.left + 'px', top: view.top + 'px'
@@ -136,6 +138,17 @@
         }
         renderBorders(plot, view) {
             document.querySelectorAll('.plot-border').forEach(element => element.remove());
+            if(plot.kind==='polygon') {
+                for(const edge of api.plotEdges(plot)) {
+                    const a=api.toScreen(edge.a,view),b=api.toScreen(edge.b,view),border=document.createElement('div'),label=document.createElement('div');
+                    border.className=`plot-border polygon-border border-${edge.border}`;border.dataset.edgeId=edge.id;
+                    if(this.focusedCheck?.edgeId===edge.id)border.className+=' focused-border';
+                    Object.assign(border.style,{left:a.x+'px',top:a.y+'px',width:Math.hypot(b.x-a.x,b.y-a.y)+'px',transform:`rotate(${Math.atan2(b.y-a.y,b.x-a.x)}rad)`});
+                    label.className='plot-border polygon-edge-label';label.textContent=`${edge.label}: ${edge.length.toFixed(2)} м${edge.border?' · '+api.borderLabels[edge.border]:''}`;
+                    Object.assign(label.style,{left:(a.x+b.x)/2+'px',top:(a.y+b.y)/2+'px'});this.container.append(border,label);
+                }
+                return;
+            }
             this.container.style.setProperty('--plot-left', view.left + 'px');
             this.container.style.setProperty('--plot-top', view.top + 'px');
             this.container.style.setProperty('--plot-width', plot.width * view.scale + 'px');
@@ -197,7 +210,7 @@
                 item.className = 'placement-issue';
                 item.dataset.kind = issue.kind;
                 if (issue.kind === 'outside') {
-                    item.textContent = `${names[0]} выходит за границы участка (${issue.sides.map(side => sideNames[side]).join(', ')}).`;
+                    item.textContent = `${names[0]} выходит за контур участка${issue.sides.length?' ('+issue.sides.map(side=>sideNames[side]).join(', ')+')':''}.`;
                 } else if (issue.kind === 'overlap') {
                     item.textContent = `${names.join(' ↔ ')}: контуры пересекаются. Нулевой отступ не разрешает перекрытие.`;
                 } else if (issue.kind === 'object-gap') {
@@ -217,11 +230,11 @@
                 if(filter==='warnings'&&['pass','not_applicable'].includes(c.status))continue;
                 if(filter==='violations'&&c.status!=='violation')continue;
                 const item=document.createElement('li');item.className='rule-result'+(c.status==='violation'?' placement-issue':'');
-                item.dataset.ruleId=c.ruleId;item.dataset.status=c.status;item.dataset.kind=c.side?'border-gap':'object-gap';
+                item.dataset.ruleId=c.ruleId;item.dataset.status=c.status;item.dataset.kind=c.side||c.edgeId?'border-gap':'object-gap';
                 const button=document.createElement('button');button.type='button';
                 const names=c.objectIds.map(id=>project.objects.find(o=>o.id===id)?.name).join(' ↔ ');
                 const metric=c.metric==='condition'?'Условие соединения/стока':c.actual===null?'Расстояние не определено':`${distanceText(c.actual,c.required??0)} м${c.required===null?'':`; минимум ${c.required} м`}`;
-                button.textContent=`${names}${c.side?' — '+sideNames[c.side]+' стороны':''}: ${c.title}. ${labels[c.status]}. ${metric}.`;
+                button.textContent=`${names}${c.edgeLabel?' — '+c.edgeLabel:c.side?' — '+sideNames[c.side]+' стороны':''}: ${c.title}. ${labels[c.status]}. ${metric}.`;
                 button.addEventListener('click',()=>globalThis.focusPlacementCheck(c));
                 item.appendChild(button);
                 const explanation=document.createElement('p');
@@ -249,9 +262,10 @@
                 bottom: [{ x: centre.x, y: rect.bottom }, { x: centre.x, y: project.plot.length }]
             };
             for (const [side, points] of Object.entries(segments)) {
-                this.distanceLine(points[0], points[1], distances[side], null, view);
+                if(project.plot.kind!=='polygon')this.distanceLine(points[0], points[1], distances[side], null, view);
             }
-            const current=analysis.checks.find(c=>this.focusedCheck&&c.ruleId===this.focusedCheck.ruleId&&c.side===this.focusedCheck.side&&c.lineId===this.focusedCheck.lineId&&c.windowIndex===this.focusedCheck.windowIndex&&c.objectIds.join('|')===this.focusedCheck.objectIds.join('|'));
+            if(project.plot.kind==='polygon')for(const m of api.boundaryMeasurements(project.plot,object))this.distanceLine(m.start,m.end,m.actual,null,view);
+            const current=analysis.checks.find(c=>this.focusedCheck&&c.ruleId===this.focusedCheck.ruleId&&c.edgeId===this.focusedCheck.edgeId&&c.side===this.focusedCheck.side&&c.lineId===this.focusedCheck.lineId&&c.windowIndex===this.focusedCheck.windowIndex&&c.objectIds.join('|')===this.focusedCheck.objectIds.join('|'));
             if(current?.start&&current.end)this.distanceLine(current.start,current.end,current.actual,current.required,view,{pair:true,status:current.status});
             for (const pair of analysis.pairs) {
                 if (!pair.objectIds.includes(object.id)) continue;

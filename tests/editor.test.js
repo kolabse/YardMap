@@ -142,10 +142,35 @@ function memoryStorage(initial = null) {
         setItem(key,value) { if(this.failWrites) throw new Error('Quota exceeded'); this.writes++; data.set(key,value); }
     };
 }
+test('polygon editor commits atomically, keeps edge context, supports history and variants',()=>{
+    const storage=memoryStorage(),app=editor({storage});
+    assert.equal(app.run('typeof applyPlotContour'),'function');
+    app.run('plotDraftRows[2].fields.x.value="12";plotDraftRows[0].fields.border.value="road";plotDraftRows[0].fields.lanes.value="one";plotDraftRows[0].fields.minimum.value="4";applyPlotContour()');
+    assert.equal(app.state().plot.kind,'polygon');assert.equal(app.state().version,2);
+    assert.equal(app.state().plot.vertices[0].minimum,4);
+    assert.match(app.get('plot').style.clipPath,/polygon/);
+    const saved=JSON.stringify(app.state()),writes=storage.writes;
+    app.run('plotDraftRows[1].fields.x.value="0";plotDraftRows[1].fields.y.value="0";applyPlotContour()');
+    assert.equal(JSON.stringify(app.state()),saved);assert.equal(storage.writes,writes);
+    assert.ok(app.get('plot-contour-error').textContent);
+    app.run('undoAction()');assert.notEqual(app.state().plot.kind,'polygon');
+    app.run('redoAction();createVariant()');assert.equal(app.state().plot.kind,'polygon');
+    assert.equal(app.state().version,2);
+    assert.equal(editor({storage,bootOnly:true}).state().plot.kind,'polygon');
+});
 function savedProject(text) {
     const data=JSON.parse(text);
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
+test('moving a polygon vertex updates area and checks; selecting a check highlights its edge',()=>{
+    const app=editor();app.run('plotDraftRows[0].fields.minimum.value="4";applyPlotContour()');app.add();app.place(3,3);
+    app.run('focusPlacementCheck(YardMap.analyzePlacement(project).checks.find(c=>c.ruleId==="U02"&&c.edgeId==="vertex-1"))');
+    assert.ok(app.run('document.querySelectorAll(".focused-border").some(e=>e.dataset.edgeId==="vertex-1")'));
+    const area=app.run('YardMap.areaSummary(project).plot');
+    app.run('plotDraftRows[2].fields.x.value="10";applyPlotContour()');
+    assert.ok(app.run('YardMap.areaSummary(project).plot')<area);
+    app.run('undoAction()');assert.equal(app.run('YardMap.areaSummary(project).plot'),area);
+});
 
 test('rule settings and object properties recompute warnings, focus pair and persist through undo',()=>{
     const app=editor();app.add();app.place(2,4);

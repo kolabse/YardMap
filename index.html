@@ -287,6 +287,15 @@
         </div>
     </div>
     
+    <details id="plot-contour-panel" class="input-section">
+        <summary>Контур участка: вершины и стороны</summary>
+        <p>Введите вершины по порядку обхода. X растёт на восток, Y — на юг; координаты в метрах, от нуля. Соседство, полосы дороги и ваш отступ относятся к стороне от этой вершины до следующей. Последняя сторона замыкается на первую.</p>
+        <p>Применение контура сохраняет объекты на своих координатах. Пересечения, касания несмежных сторон и нулевая площадь недопустимы. Изменения можно отменить. Кнопка изменения размеров участка создаёт прямоугольник.</p>
+        <div id="plot-vertices"></div>
+        <button type="button" id="apply-plot-contour">Применить контур</button>
+        <button type="button" id="reset-plot-contour">Сбросить правки вершин</button>
+        <p id="plot-contour-error" class="field-error" role="alert"></p>
+    </details>
     <div id="rules-info" style="display: none;">
         <h2>Правила и условия размещения</h2>
         <p>Укажите профиль участка, соседство и назначение построек. Каждая проверка содержит расстояние, условия и источник. Если сведения неизвестны, приложение покажет «Недостаточно данных»; несверенный источник не даёт оценки соответствия.</p>
@@ -296,6 +305,7 @@
     <script src="js/catalog.js"></script>
     <script src="js/assessment.js"></script>
     <script src="js/shapes.js"></script>
+    <script src="js/plot-geometry.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
     <script src="js/variants.js"></script>
@@ -310,5 +320,6 @@
     <script src="js/history.js"></script>
     <script src="script.js"></script>
     <script src="js/assessment-ui.js"></script>
+    <script src="js/plot-ui.js"></script>
 </body>
 </html>

@@ -434,3 +434,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible, .building:focus-vi
 .legend-category { grid-column: 1 / -1; margin: 10px 0 4px; }
 
 [hidden] { display: none !important; }
+
+.polygon-plot { border: 0 !important; }
+.polygon-border { position: absolute; height: 2px; background: #37474f; transform-origin: 0 0; pointer-events: none; z-index: 2; }
+.polygon-border.focused-border { background: #7b1fa2; height: 4px; }
+.polygon-edge-label { position: absolute; transform: translate(-50%,-100%); background: #ffffffdd; font-size: 11px; pointer-events: none; white-space: nowrap; z-index: 3; }
+#plot-vertices { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 12px; }
+#plot-vertices fieldset { min-width: 0; }
+#plot-vertices label { display: block; margin-top: 6px; }
+#plot-vertices input, #plot-vertices select { width: 100%; box-sizing: border-box; }
+#plot-vertices button { margin: 8px 4px 0 0; }

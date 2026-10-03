@@ -99,6 +99,8 @@ function focusPlacementCheck(c) {
     const objects=project.objects.filter(o=>c.objectIds.includes(o.id)&&o.status==='placed');
     const points=objects.flatMap(o=>{const r=YardMap.objectRect(o);return [{x:r.left,y:r.top},{x:r.right,y:r.bottom}];});
     const line=project.assessment.constraints.find(l=>l.id===c.lineId);
+    const edge=project.plot&&YardMap.plotEdges(project.plot).find(e=>e.id===c.edgeId);
+    if(edge)points.push(edge.a,edge.b);
     if(line)points.push({x:line.x1,y:line.y1},{x:line.x2,y:line.y2});
     if(c.side&&objects[0]){
         const r=YardMap.objectRect(objects[0]),centre={x:(r.left+r.right)/2,y:(r.top+r.bottom)/2};

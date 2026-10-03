@@ -1,5 +1,6 @@
 (() => {
     // Metres are the only units here, except at the explicit view boundary.
+    const plots=typeof module!=='undefined'&&module.exports?require('./plot-geometry.js'):globalThis.YardMap;
     const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     function objectSize(object) {
         if(object.geometry?.kind==='circle')return {width:object.geometry.radius*2,length:object.geometry.radius*2};
@@ -45,10 +46,12 @@
         return { start: { x: ax, y: ay }, end: { x: bx, y: by }, distance, relation };
     }
     function touchesPlot(plot, object) {
+        if(plot.kind==='polygon')return plots.objectTouchesPolygon(plot,object);
         const rect = objectRect(object);
         return rect.right > 0 && rect.bottom > 0 && rect.left < plot.width && rect.top < plot.length;
     }
     function isInsidePlot(plot, object) {
+        if(plot.kind==='polygon')return plots.objectInsidePolygon(plot,object);
         if(object.type==='tree')return object.x>=-geometryEpsilon&&object.y>=-geometryEpsilon&&object.x<=plot.width+geometryEpsilon&&object.y<=plot.length+geometryEpsilon;
         const rect = objectRect(object);
         const epsilon = geometryEpsilon; // Avoid marking an exact boundary contact due to conversion round-off.
@@ -119,7 +122,7 @@
         const candidates=[{start:u,end:toSegment(u,w,z)},{start:v,end:toSegment(v,w,z)},{start:toSegment(w,u,v),end:w},{start:toSegment(z,u,v),end:z}];
         return candidates.map(m=>({...m,distance:Math.hypot(m.end.x-m.start.x,m.end.y-m.start.y)})).sort((a,b)=>a.distance-b.distance).map(m=>({...m,relation:m.distance<=geometryEpsilon?'touching':'separated'}))[0];
     }
-    const api = { areaSummary,objectMeasurement, objectSize, objectRect, borderDistances, rectangleDistance, rectangleMeasurement, rectangleSegmentMeasurement,geometryEpsilon, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
+    const api = { plotArea:plots.plotArea,plotEdges:plots.plotEdges,boundaryMeasurements:plots.boundaryMeasurements,areaSummary,objectMeasurement, objectSize, objectRect, borderDistances, rectangleDistance, rectangleMeasurement, rectangleSegmentMeasurement,geometryEpsilon, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();
