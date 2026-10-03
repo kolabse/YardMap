@@ -13,12 +13,6 @@
         <a href="#planner">План</a><a href="#object-panel">Свойства</a>
         <a href="#catalog-panel">Добавить объект</a><a href="#file-panel">Сохранение</a>
     </nav>
-    <section class="input-section" aria-label="История изменений">
-        <button id="undo-action" disabled>Отменить</button>
-        <button id="redo-action" disabled>Повторить</button>
-        <p id="history-status" role="status" aria-live="polite"></p>
-        <p>Ctrl/Cmd+Z — отменить, Ctrl/Cmd+Shift+Z или Ctrl+Y — повторить. В полях ввода сочетания редактируют текст.</p>
-    </section>
     <details class="input-section" id="variants-panel">
         <summary>Варианты планировки</summary>
         <label for="variant-select">Вариант планировки</label>
@@ -168,6 +162,17 @@
             </section>
             <div class="plot-container" role="region" aria-label="План участка">
                 <div id="plot"></div>
+                <section id="history-controls" class="history-controls" aria-label="История изменений">
+                    <button id="undo-action" type="button" aria-label="Отменить" title="Отменить (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" disabled><span aria-hidden="true">↶</span></button>
+                    <button id="redo-action" type="button" aria-label="Повторить" title="Повторить (Ctrl/Cmd+Shift+Z или Ctrl+Y)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled><span aria-hidden="true">↷</span></button>
+                    <button id="history-help" type="button" aria-label="Подсказка истории изменений" aria-controls="history-tooltip" aria-expanded="false" aria-describedby="history-tooltip">?</button>
+                    <div id="history-tooltip" class="history-tooltip" role="tooltip" hidden>
+                        <strong>История изменений</strong>
+                        <p id="history-status" role="status" aria-live="polite"></p>
+                        <p>Ctrl/Cmd+Z — отменить.<br>Ctrl/Cmd+Shift+Z или Ctrl+Y — повторить.</p>
+                        <p>В полях ввода сочетания редактируют текст. Escape закрывает подсказку.</p>
+                    </div>
+                </section>
             </div>
             <p id="outside-warning" class="outside-warning" role="status" aria-live="polite"></p>
             <section id="placement-report" class="placement-report" hidden>
@@ -356,6 +361,7 @@
     <script src="js/viewport.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/history.js"></script>
+    <script src="js/history-ui.js"></script>
     <script src="script.js"></script>
     <script src="js/assessment-ui.js"></script>
     <script src="js/plot-ui.js"></script>
