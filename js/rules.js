@@ -19,6 +19,7 @@
             source:{document:'СП 4.13130.2013, изменения №1–4',checkedAt:'2026-10-03',url:'https://protect.gost.ru/sp/details/fe915813-95ec-43a6-ab1c-91027e06bf1c'}},
         W01:{title:'Санитарные условия водоснабжения и канализации',clause:'8.1–8.3, 8.7',sourceStatus:'pending'},
         Z01:{title:'Лес, канава и специальные зоны',clause:'4',sourceStatus:'pending'},
+        U02:{title:'Пользовательский отступ от стороны контура',category:'user',source:null},
         U01:{title:'Пользовательский отступ от линии',category:'user',source:null}
     };
     for(const [id,r] of Object.entries(ruleDefinitions))ruleDefinitions[id]=Object.freeze({id,category:'document',sourceStatus:'verified',source,...r});

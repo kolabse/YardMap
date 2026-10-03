@@ -3,6 +3,7 @@
         ? require('./catalog.js') : globalThis.YardMap;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
 
+    const plots=typeof module!=='undefined'&&module.exports?require('./plot-geometry.js'):globalThis.YardMap;
     const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     function validateSize(width, length) {
         if (![width, length].every(value => Number.isFinite(value) && value > 0)) {
@@ -17,12 +18,17 @@
     function setPlot(project, width, length) {
         validateSize(width, length);
         project.plot = {
-            width, length,
+            ...(project.version===2?{kind:'rectangle'}:{}),width, length,
             borders: project.plot?.borders || { north: '', east: '', south: '', west: '' }
         };
     }
 
+    function setPolygon(project,vertices,nextVertexId) {
+        const counter=nextVertexId??Math.max(project.plot?.nextVertexId??1,1+Math.max(0,...vertices.map(v=>Number(/^vertex-([1-9]\d*)$/.exec(v.id)?.[1]??0))));
+        const plot=plots.normalizePolygon(vertices,counter);project.plot=plot;project.version=2;return plot;
+    }
     function setBorder(project, side, type) {
+        if(project.plot?.kind==='polygon')throw new Error('Задайте соседство в редакторе сторон контура.');
         if (!project.plot || !Object.hasOwn(project.plot.borders, side)) return;
         if (type !== '' && !Object.hasOwn(borderLabels, type)) throw new RangeError('Неизвестный тип границы');
         project.plot.borders[side] = type;
@@ -91,7 +97,7 @@
         project.objects=project.objects.filter(item=>item.id!==id);
         for(const o of project.objects)if(o.assessment?.attachedTo===id)o.assessment.attachedTo=null;
     }
-    const api = { createProject, setPlot, setBorder, addObject, placeObject, returnToWaiting, updateObject, copyObject, deleteObject };
+    const api = { createProject, setPlot, setPolygon,setBorder, addObject, placeObject, returnToWaiting, updateObject, copyObject, deleteObject };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();

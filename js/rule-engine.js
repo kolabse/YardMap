@@ -35,18 +35,64 @@
             const c={ruleId,category:r.category,sourceStatus:r.sourceStatus,title:r.title,source:r.source,
                 clause:r.clause,objectIds:[...ids].sort(),actual,required,missing,status,...extra};
             result.checks.push(c);
-            if(c.status==='violation')issue({...c,kind:extra.side?'border-gap':'object-gap'});
+            if(c.status==='violation')issue({...c,kind:extra.side||extra.edgeId?'border-gap':'object-gap'});
             return c;
+        }
+        function polygonChecks(o,a) {
+            const wall=measurementRect(o,true),simpleWall=measurementRect(o);
+            const edges=g.boundaryMeasurements(project.plot,o,wall,o.type==='tree');
+            const baseMissing=[];if(a.ownership==='unknown')baseMissing.push('Принадлежность объекта');
+            const inside=g.isInsidePlot(project.plot,o);
+            for(const e of edges) {
+                const extra={edgeId:e.id,edgeLabel:e.label,start:e.start,end:e.end};
+                const missing=[...baseMissing];if(!inside)missing.push('Объект должен находиться внутри контура');
+                if(['forest','ditch'].includes(e.border))check('Z01',[o.id],null,null,[],extra);
+                if(o.type==='tree') {
+                    if(e.border==='neighbor'||!e.border) {
+                        const minimum={high:4,medium:2,low:1}[a.treeClass];
+                        if(!minimum)missing.push('Категория взрослого растения');if(!e.border)missing.push('Соседство стороны');
+                        check('B03',[o.id],e.actual,minimum??null,missing,{...extra,reason:'Расстояние от ствола до конечной стороны контура.'});
+                    }
+                }else if(o.type==='compost') {
+                    if(a.purpose!=='compost')missing.push('Назначение компостного сооружения');
+                    if(e.border==='road')check('S01',[o.id],null,2,[...missing,'Подтверждённое ограждение улицы / проезда'],extra);
+                    else if(e.border==='neighbor'||!e.border){if(!e.border)missing.push('Соседство стороны');check('S01',[o.id],e.actual,2,missing,extra);}
+                }else if(o.type==='septic') {
+                    const kind=a.septicKind??'unknown';if(kind==='unknown')missing.push('Тип и состав стоков');
+                    if(a.purpose!=='septic')missing.push('Назначение системы стоков');if(!simpleWall)missing.push('Контур сооружения');
+                    if(kind==='septic'||e.border==='neighbor'||!e.border) {
+                        if(!e.border&&kind!=='septic')missing.push('Соседство стороны');
+                        const m=g.boundaryMeasurements(project.plot,o,simpleWall).find(m=>m.id===e.id);
+                        check('S02',[o.id],simpleWall?m.actual:null,kind==='septic'?1:2,missing,{...extra,start:m.start,end:m.end});
+                    }
+                    if(kind==='pit'&&e.border==='road')check('S02',[o.id],null,2,[...missing,'Подтверждённое ограждение улицы / проезда'],extra);
+                }else if(definitions[o.type].solid) {
+                    if(a.purpose==='unknown')missing.push('Назначение объекта');if(!wall)missing.push('Контур стены и выступы');if(!e.border)missing.push('Соседство стороны');
+                    const actual=wall?e.actual:null,known=a.purpose!=='unknown',house=a.purpose==='house';
+                    if((e.border==='neighbor'||!e.border)&&!['well','biotoilet','open_parking'].includes(a.purpose)) {
+                        check(house||!known?'B01':'B02',[o.id],actual,known?(house?3:a.purpose==='poultry'?4:1):null,missing,extra);
+                        if(known&&!house&&e.border==='neighbor') {
+                            check('B06',[o.id],actual,a.height===null?null:a.height/3,a.height===null?[...missing,'Высота стороны постройки']:missing,extra);
+                            if(actual!==null&&Math.abs(actual-1)<=g.geometryEpsilon)check('B06',[o.id],a.drainage==='own'?1:0,1,a.drainage==='unknown'?[...missing,'Направление стока с крыши']:missing,{...extra,metric:'condition',start:undefined,end:undefined});
+                        }
+                    }else if(e.border==='road'&&!['well','biotoilet','open_parking'].includes(a.purpose)) {
+                        if(e.lanes==='unknown')missing.push('Полосность улицы / проезда');if(context.localRoadMinimum===null)missing.push('Местный градостроительный отступ');
+                        if(['garage','carport'].includes(a.purpose))missing.push('Условия примыкания к ограждению');
+                        check('B04',[o.id],actual,Math.max(e.lanes==='one'?4:3,context.localRoadMinimum??0),missing,{...extra,reason:'Граница участка со стороны УДС, не красная линия.'});
+                    }
+                }
+            }
         }
         const profile=context.territory==='gardening';
         for(const o of placed) {
             const a=am.get(o.id);
             if(a.ownership!=='neighbor') {
                 const d=g.borderDistances(project.plot,o),sides=o.type==='tree'?['left','right','top','bottom'].filter(s=>({left:o.x,right:project.plot.width-o.x,top:o.y,bottom:project.plot.length-o.y})[s]<-g.geometryEpsilon):Object.keys(d).filter(s=>d[s]<-g.geometryEpsilon);
-                if(sides.length)issue({kind:'outside',objectIds:[o.id],sides});
+                if(project.plot.kind==='polygon'?!g.isInsidePlot(project.plot,o):sides.length)issue({kind:'outside',objectIds:[o.id],sides:project.plot.kind==='polygon'?[]:sides});
             }
             if(!profile)check('PROFILE',[o.id],null,null,context.territory==='unknown'?['Назначение территории']:[],
                 {reason:context.territory==='other'?'Профиль садоводства не применяется.':''});
+            else if(project.plot.kind==='polygon'&&a.ownership!=='neighbor')polygonChecks(o,a);
             else if(a.ownership!=='neighbor'&&['tree','septic','compost'].includes(o.type)) {
                 for(const [s,k] of Object.entries(sideKey)) {
                     const border=project.plot.borders[k];
@@ -101,6 +147,7 @@
                 }
             }
             if(profile&&(['well','outdoor_toilet','biotoilet','septic'].includes(a.purpose)||o.type==='septic'))check('W01',[o.id]);
+            if(project.plot.kind==='polygon'&&a.ownership!=='neighbor')for(const e of g.boundaryMeasurements(project.plot,o))if(e.minimum!==null)check('U02',[o.id],e.actual,e.minimum,[],{edgeId:e.id,edgeLabel:e.label,start:e.start,end:e.end,reason:'Порог этой стороны задан пользователем.'});
             for(const line of context.constraints)if(a.ownership!=='neighbor') {
                 const proxy={geometry:{kind:'line',dx:line.x2-line.x1,dy:line.y2-line.y1},x:line.x1,y:line.y1,rotation:0};
                 const m=g.objectMeasurement(o,proxy);

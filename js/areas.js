@@ -1,10 +1,24 @@
 (() => {
+    const plots=typeof module!=='undefined'&&module.exports?require('./plot-geometry.js'):globalThis.YardMap;
     const catalog=typeof module!=='undefined'&&module.exports?require('./catalog.js'):globalThis.YardMap;
     function unionArea(objects,plot) {
         const g=typeof module!=='undefined'&&module.exports?require('./geometry.js'):globalThis.YardMap;
         const shapes=objects.filter(o=>o.geometry?.kind!=='line').map(o=>({object:o,rect:g.objectRect(o)}));
         const xs=[0,plot.width];
         for(const {object:o,rect:r} of shapes) {xs.push(Math.max(0,Math.min(plot.width,r.left)),Math.max(0,Math.min(plot.width,r.right)));if(o.geometry?.kind==='circle'&&o.x>0&&o.x<plot.width)xs.push(o.x);}
+        if(plot.kind==='polygon') {
+            xs.push(...plot.vertices.map(v=>v.x));
+            // Seed circle/edge intersections so a narrow clipped crescent cannot fall
+            // between all quadrature samples and silently disappear.
+            for(const e of plots.plotEdges(plot))for(const {object:o} of shapes)if(o.geometry?.kind==='circle') {
+                const dx=e.b.x-e.a.x,dy=e.b.y-e.a.y,ox=e.a.x-o.x,oy=e.a.y-o.y;
+                const a=dx*dx+dy*dy,b=2*(ox*dx+oy*dy),c=ox*ox+oy*oy-o.geometry.radius**2,disc=b*b-4*a*c;
+                if(disc>=0)for(const t of [(-b-Math.sqrt(disc))/(2*a),(-b+Math.sqrt(disc))/(2*a)])if(t>0&&t<1)xs.push(e.a.x+t*dx);
+            }
+            for(const e of plots.plotEdges(plot))for(const {rect:r} of shapes)for(const y of [r.top,r.bottom])if(e.a.y!==e.b.y) {
+                const t=(y-e.a.y)/(e.b.y-e.a.y);if(t>0&&t<1)xs.push(e.a.x+t*(e.b.x-e.a.x));
+            }
+        }
         // Rectangle edges partition constant coverage; circle extrema partition curved coverage.
         const points=[...new Set(xs)].sort((a,b)=>a-b);
         function integrate(f,a,b,tolerance,depth=18) {
@@ -22,11 +36,13 @@
             const left=points[i-1],right=points[i],mid=(left+right)/2;
             const active=shapes.filter(s=>s.rect.left<mid&&s.rect.right>mid);
             const span=x=>{
-                const intervals=[];
+                // Use a one-sided endpoint for vertical contour edges; measure-zero edges add no area.
+                const px=x===left?left+(right-left)*1e-10:x===right?right-(right-left)*1e-10:x;
+                const plotSpans=plots.plotIntervals(plot,px),intervals=[];
                 for(const {object:o,rect:r} of active) {
                     let lo=r.top,hi=r.bottom;
                     if(o.geometry?.kind==='circle') {const radius=o.geometry.radius,d=Math.sqrt(Math.max(0,radius*radius-(x-o.x)*(x-o.x)));lo=o.y-d;hi=o.y+d;}
-                    lo=Math.max(0,lo);hi=Math.min(plot.length,hi);if(hi>lo)intervals.push([lo,hi]);
+                    for(const [bottom,top] of plotSpans){const lower=Math.max(bottom,lo),upper=Math.min(top,hi);if(upper>lower)intervals.push([lower,upper]);}
                 }
                 // Merge vertical intervals before integration so overlaps contribute only once.
                 intervals.sort((a,b)=>a[0]-b[0]);let length=0,end=-Infinity;
@@ -34,13 +50,13 @@
             };
             total+=active.some(s=>s.object.geometry?.kind==='circle')?integrate(span,left,right,1e-7/points.length):span(mid)*(right-left);
         }
-        return Math.max(0,Math.min(plot.width*plot.length,total));
+        return Math.max(0,Math.min(plots.plotArea(plot),total));
     }
     function calculateAreaSummary(project) {
         if(!project.plot)return {plot:0,sotkas:0,covered:0,percent:0,categories:{},objects:[]};
         const objects=project.objects.filter(o=>o.status==='placed'&&o.assessment?.ownership!=='neighbor');
         const categories={};for(const category of Object.keys(catalog.categoryLabels))categories[category]=unionArea(objects.filter(o=>catalog.definitions[o.type].category===category),project.plot);
-        const covered=unionArea(objects,project.plot),area=project.plot.width*project.plot.length;
+        const covered=unionArea(objects,project.plot),area=plots.plotArea(project.plot);
         return {plot:area,sotkas:area/100,covered,percent:covered/area*100,categories,
             objects:objects.map(o=>({id:o.id,area:unionArea([o],project.plot)}))};
     }

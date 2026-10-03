@@ -1,6 +1,7 @@
 (() => {
     const { definitions, borderLabels } = typeof module !== 'undefined' && module.exports
         ? require('./catalog.js') : globalThis.YardMap;
+    const plots=typeof module!=='undefined'&&module.exports?require('./plot-geometry.js'):globalThis.YardMap;
     const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     const maxProjectFileBytes = 2 * 1024 * 1024;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
@@ -19,21 +20,29 @@
     // Construct a new canonical model from a whitelist; never mutate imported data.
     function validateProject(data) {
         record(data,'Проект');
-        if (data.version !== 1) fail('Неподдерживаемая версия проекта. Поддерживается версия 1.');
+        if (![1,2].includes(data.version)) fail('Неподдерживаемая версия проекта. Поддерживаются версии 1 и 2.');
         const projectName = name(data.name,'Название проекта');
         record(data.settings,'Настройки');
         if (data.settings.units !== 'm') fail('Единицы проекта должны быть метрами (m).');
         if (!Array.isArray(data.objects) || data.objects.length > 1000) fail('Объекты: требуется массив, не более 1000 объектов.');
         let plot = null;
         if (data.plot !== null) {
-            record(data.plot,'Участок'); record(data.plot.borders,'Соседство сторон');
+            record(data.plot,'Участок');
+            if(data.version===2&&data.plot.kind==='polygon') {
+                if(!Number.isSafeInteger(data.plot.nextVertexId))fail('Неверный счётчик вершин.');
+                plot=plots.normalizePolygon(data.plot.vertices,data.plot.nextVertexId);
+                if(plot.width!==data.plot.width||plot.length!==data.plot.length)fail('Габариты не соответствуют контуру.');
+            }else {
+            if(data.version===2&&data.plot.kind!=='rectangle'||data.version===1&&data.plot.kind==='polygon')fail('Неверный вид участка для версии проекта.');
+            record(data.plot.borders,'Соседство сторон');
             const borders = {};
             for (const side of ['north','east','south','west']) {
                 const type = data.plot.borders[side];
                 if (typeof type !== 'string' || (type !== '' && !Object.hasOwn(borderLabels,type))) fail(`Неизвестное соседство стороны ${side}.`);
                 borders[side] = type;
             }
-            plot = { width: positive(data.plot.width,'Ширина участка'), length: positive(data.plot.length,'Длина участка'), borders };
+            plot = { ...(data.version===2?{kind:'rectangle'}:{}),width: positive(data.plot.width,'Ширина участка'), length: positive(data.plot.length,'Длина участка'), borders };
+            }
         } else if (data.objects.length) fail('Проект с объектами должен содержать участок.');
         const ids = new Set(); let largestId = 0;
         const objects = data.objects.map((object,index) => {
@@ -63,7 +72,7 @@
         if (!Number.isSafeInteger(data.nextObjectId) || data.nextObjectId <= largestId || data.nextObjectId < 1
             || data.nextObjectId >= Number.MAX_SAFE_INTEGER) fail('Неверный счётчик ID объектов.');
         assessment.validateConnections(objects);
-        return { version: 1, name: projectName, settings: { units: 'm' }, assessment:assessment.projectAssessment(data.assessment),plot, objects, nextObjectId: data.nextObjectId };
+        return { version: data.version, name: projectName, settings: { units: 'm' }, assessment:assessment.projectAssessment(data.assessment),plot, objects, nextObjectId: data.nextObjectId };
     }
     function parseProject(text) {
         if (typeof text !== 'string') fail('Ожидается текст файла JSON.');

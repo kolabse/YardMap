@@ -123,9 +123,10 @@ function render() {
     renderViewControls();
     renderObjectProperties();
     if(typeof renderAssessmentControls==='function')renderAssessmentControls();
+    if(typeof plotDraftIdentity!=='undefined')renderPlotContour();
     if (project.plot) {
-        document.getElementById('create-plot').textContent = 'Изменить размеры';
-        document.getElementById('plot-summary').textContent = `Текущий участок: ${project.plot.width} × ${project.plot.length} м`;
+        document.getElementById('create-plot').textContent = project.plot.kind==='polygon'?'Сделать прямоугольным':'Изменить размеры';
+        document.getElementById('plot-summary').textContent = project.plot.kind==='polygon'?`Контур: ${project.plot.vertices.length} сторон, ${YardMap.plotArea(project.plot).toFixed(2)} м²`:`Текущий участок: ${project.plot.width} × ${project.plot.length} м`;
         document.getElementById('new-project').hidden = false;
     } else {
         document.getElementById('create-plot').textContent = 'Создать участок';
@@ -423,7 +424,7 @@ function renderVariants() {
     for (const variant of layouts.variants) {
         const plan = variant.id === layouts.activeId ? project : variant.project;
         const option = document.createElement('option'); option.value = variant.id;
-        const area = plan.plot ? `${Number((plan.plot.width * plan.plot.length).toFixed(2))} м²` : 'без участка';
+        const area = plan.plot ? `${Number(YardMap.plotArea(plan.plot).toFixed(2))} м²` : 'без участка';
         option.textContent = `${plan.name} — объектов: ${plan.objects.length}, ${area}`;
         select.appendChild(option);
         if (variant.id === layouts.activeId) document.getElementById('active-variant-summary').textContent = `Активный вариант: ${option.textContent}`;
@@ -462,6 +463,7 @@ function addVariant(plan) {
 function createVariant() {
     if (layouts.variants.length >= YardMap.maxVariants || !prepareVariantChange()) return;
     const plan = YardMap.createProject();
+    plan.version=project.version;
     plan.name = `Вариант ${layouts.nextVariantId}`;
     plan.plot = project.plot ? JSON.parse(JSON.stringify(project.plot)) : null;
     plan.settings = { ...project.settings };
@@ -630,6 +632,7 @@ function renderObjectProperties() {
         ? (object.geometry?.kind==='circle'?'Отступы края кроны до сторон (правило дерева — от ствола): ':'Отступы до сторон: ')+Object.entries(offsets).map(([side,value])=>`${names[side]}: ${Number(value.toPrecision(12))} м`).join('; ')
         : 'Объект в ожидании: координаты и отступы не заданы.';
     const area=renderer.areas?.objects.find(item=>item.id===object.id)?.area;
+    if(offsets&&project.plot.kind==='polygon')document.getElementById('object-offsets').textContent='Расстояния до сторон контура: '+YardMap.boundaryMeasurements(project.plot,object).map(e=>`${e.label}: ${e.actual.toFixed(3)} м`).join('; ');
     if(area!==undefined)document.getElementById('object-offsets').textContent+=` Площадь внутри участка: ≈${area.toFixed(2)} м².`;
 }
 function updatePositionInputs() {
