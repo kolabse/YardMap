@@ -162,6 +162,23 @@ function savedProject(text) {
     const data=JSON.parse(text);
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
+test('canvas history help opens by click or focus, stays current and closes with Escape',()=>{
+    const app=editor(),help=app.get('history-help'),popup=app.get('history-tooltip');
+    assert.equal(typeof help.listeners.click,'function');assert.equal(popup.hidden,true);
+    help.listeners.click();assert.equal(popup.hidden,false);assert.equal(help['aria-expanded'],'true');
+    app.add();assert.match(app.get('history-status').textContent,/Действий для отмены: 2/);
+    app.run('undoAction()');assert.match(app.get('history-status').textContent,/Действий для отмены: 1/);
+    app.get('history-controls').listeners.keydown({key:'Escape',preventDefault(){},stopPropagation(){}});
+    assert.equal(popup.hidden,true);assert.equal(help['aria-expanded'],'false');
+    app.get('history-controls').listeners.focusin();assert.equal(popup.hidden,false);
+    app.get('history-controls').listeners.focusout({relatedTarget:null});assert.equal(popup.hidden,true);
+});
+test('history overlay stops pointer and wheel gestures from reaching the canvas',()=>{
+    const app=editor(),controls=app.get('history-controls');let stopped=0;
+    assert.equal(typeof controls.listeners.pointerdown,'function');
+    controls.listeners.pointerdown({stopPropagation(){stopped++;}});
+    controls.listeners.wheel({stopPropagation(){stopped++;}});assert.equal(stopped,2);
+});
 test('background controls preserve object geometry, undo calibration and export a standalone print plan',async()=>{
     const storage=memoryStorage(),app=editor({storage});app.add();app.place(3,4);
     const objects=JSON.stringify(app.state().objects);
