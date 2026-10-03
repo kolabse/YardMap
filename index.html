@@ -137,6 +137,10 @@
     
     <div class="main-container">
         <div class="center-column" id="planner">
+            <details class="input-section" open><summary>Площади и покрытие участка</summary>
+                <p id="area-summary" role="status"></p><ul id="area-categories"></ul>
+                <details><summary>Как считается площадь</summary><p>Покрытие — объединение прямоугольных объектов и проекций крон внутри участка. Пересечения считаются один раз. Линии коммуникаций и ворот занимают 0 м²; неразмещённые и соседские объекты исключены. Площади категорий могут пересекаться: их сумма не равна общему покрытию. Это геометрический показатель, не нормативная доля застройки. Для кругов используется численное интегрирование; значения показаны приблизительно до 0.01 м².</p></details>
+            </details>
             <section class="view-controls" aria-label="Управление видом">
                 <div class="view-buttons">
                     <button id="zoom-in" aria-label="Увеличить вид">+</button>
@@ -200,14 +204,16 @@
                 <select id="object-select"></select>
                 <div id="object-properties" hidden>
                     <label for="object-name">Название</label><input id="object-name" maxlength="200" aria-describedby="object-properties-error">
-                    <label for="object-width">Ширина (м)</label><input id="object-width" type="number" step="any" min="0" aria-describedby="object-properties-error">
-                    <label for="object-length">Длина (м)</label><input id="object-length" type="number" step="any" min="0" aria-describedby="object-properties-error">
+                    <p id="object-anchor-note"></p><label id="object-width-label" for="object-width">Ширина (м)</label><input id="object-width" type="number" step="any" min="0" aria-describedby="object-properties-error">
+                    <label id="object-length-label" for="object-length">Длина (м)</label><input id="object-length" type="number" step="any" min="0" aria-describedby="object-properties-error">
                     <label for="object-status">Размещение</label><select id="object-status"><option value="waiting">В ожидании</option><option value="placed">На участке</option></select>
                     <label for="object-x">X от запада (м)</label><input id="object-x" type="number" step="any" aria-describedby="object-properties-error">
                     <label for="object-y">Y от севера (м)</label><input id="object-y" type="number" step="any" aria-describedby="object-properties-error">
                     <label for="object-rotation">Поворот</label><select id="object-rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
 <details class="assessment-properties"><summary>Назначение и условия размещения</summary><label for="object-ownership">Участок объекта</label><select id="object-ownership"><option value="unknown">Неизвестно</option><option value="own">Мой участок</option><option value="neighbor">Соседний участок</option></select>
-<label for="object-purpose">Назначение для проверки</label><select id="object-purpose"><option value="unknown">Неизвестно</option><option value="house">Садовый / жилой дом</option><option value="outbuilding">Хозяйственная постройка</option><option value="poultry">Птица / кролики</option><option value="outdoor_toilet">Надворный туалет</option><option value="biotoilet">Биотуалет</option><option value="bath">Баня / сауна</option><option value="shower">Душ</option><option value="well">Колодец</option><option value="garage">Гараж</option><option value="carport">Навес для автомобиля</option><option value="open_parking">Открытая стоянка</option><option value="veranda">Веранда</option></select>
+<label for="object-purpose">Назначение для проверки</label><select id="object-purpose"><option value="unknown">Неизвестно</option><option value="house">Садовый / жилой дом</option><option value="outbuilding">Хозяйственная постройка</option><option value="poultry">Птица / кролики</option><option value="outdoor_toilet">Надворный туалет</option><option value="biotoilet">Биотуалет</option><option value="bath">Баня / сауна</option><option value="shower">Душ</option><option value="well">Колодец</option><option value="garage">Гараж</option><option value="carport">Навес для автомобиля</option><option value="open_parking">Открытая стоянка</option><option value="veranda">Веранда</option><option value="tree">Дерево / кустарник</option><option value="septic">Система стоков</option><option value="compost">Компост</option><option value="zone">Зона / дорожка</option><option value="infrastructure">Линия / ворота</option></select>
+<label id="object-tree-class-label" for="object-tree-class">Категория взрослого растения (не текущая высота саженца)</label><select id="object-tree-class"><option value="unknown">Неизвестно</option><option value="high">Высокорослое (более 20 м)</option><option value="medium">Среднерослое (10–20 м)</option><option value="low">Низкорослое / кустарник (до 10 м)</option></select>
+<label id="object-septic-kind-label" for="object-septic-kind">Тип системы стоков</label><select id="object-septic-kind"><option value="unknown">Неизвестно</option><option value="septic">Одно-/двухкамерный септик</option><option value="pit">Выгребное устройство</option><option value="graywater">Очистка условно чистых стоков</option></select>
 <label for="object-standalone">Отдельно стоящий объект</label><select id="object-standalone"><option value="unknown">Неизвестно</option><option value="yes">Да</option><option value="no">Нет, пристроенный</option></select>
 <label for="object-measurement">Прямоугольник на плане</label><select id="object-measurement"><option value="unknown">Неизвестно</option><option value="wall">Контур цоколя / стен</option></select>
 <p>Подтвердите, от какого контура заданы размеры. Выступы вводятся по мировым сторонам плана; после поворота проверьте их заново. Пустое поле означает неизвестное значение.</p><label for="object-projection-left">Максимальный выступ, Запад (м)</label><input id="object-projection-left" type="number" step="any">
@@ -236,10 +242,10 @@
                 </div>
             </details>
             <details id="catalog-panel" class="input-section">
-                <summary>Добавление построек</summary>
+                <summary>Добавление объектов</summary>
                 <div id="building-section" style="display: none;">
                 <div>
-                    <label for="building-type">Тип постройки:</label>
+                    <label for="building-type">Тип объекта:</label>
                     <select id="building-type" aria-describedby="building-type-error">
                         <option value="" selected disabled>Выбрать</option>
                         <option value="house">Дом</option>
@@ -257,15 +263,15 @@
                     <p id="building-type-error" class="field-error" role="alert"></p>
                     
                     <div id="building-size-controls" class="building-controls">
-                        <label for="building-width">Ширина (м):</label>
+                        <label id="building-width-label" for="building-width">Ширина (м):</label>
                         <input type="number" id="building-width" min="0" step="any" value="5" aria-describedby="building-width-error">
                         <p id="building-width-error" class="field-error" role="alert"></p>
                         
-                        <label for="building-length">Длина (м):</label>
+                        <label id="building-length-label" for="building-length">Длина (м):</label>
                         <input type="number" id="building-length" min="0" step="any" value="6" aria-describedby="building-length-error">
                         <p id="building-length-error" class="field-error" role="alert"></p>
                         
-                        <button id="create-building">Создать постройку</button>
+                        <button id="create-building">Добавить объект</button>
                     </div>
                 </div>
                 </div>
@@ -274,8 +280,8 @@
         
         <div class="right-column">
             <div id="buildings-legend" class="input-section">
-                <h2>Легенда построек</h2>
-                <p>Кликните на тип постройки для выделения</p>
+                <h2>Легенда объектов</h2>
+                <p>Кликните на тип объекта для выделения</p>
                 <div id="legend-content"></div>
             </div>
         </div>
@@ -289,11 +295,13 @@
 
     <script src="js/catalog.js"></script>
     <script src="js/assessment.js"></script>
+    <script src="js/shapes.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
     <script src="js/variants.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/geometry.js"></script>
+    <script src="js/areas.js"></script>
     <script src="js/rules.js"></script>
     <script src="js/rule-engine.js"></script>
     <script src="js/placement.js"></script>

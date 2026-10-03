@@ -975,3 +975,25 @@ test('user restriction lines persist, focus and undo independently of normative 
     assert.equal(app.state().assessment.constraints.length,1);
     assert.ok(app.get('constraint-error').textContent);
 });
+
+test('garden and line controls preserve shape anchors, coverage and undo across reload',()=>{
+    const storage=memoryStorage(),app=editor({storage});
+    app.get('building-type').value='tree';app.get('building-type').listeners.change();
+    app.get('building-width').value='4';app.add();app.place(3,3);
+    assert.equal(app.state().objects[0].geometry.radius,2);
+    assert.equal(app.state().objects[0].x,5);assert.equal(app.state().objects[0].y,5);
+    assert.match(app.get('area-summary').textContent,/сот/);
+    assert.equal(app.run('document.querySelectorAll(".tree-trunk").length'),1);
+    app.get('object-width').value='6';app.get('apply-object-properties').listeners.click();
+    assert.equal(app.state().objects[0].geometry.radius,3);
+    app.run('undoAction()');assert.equal(app.state().objects[0].geometry.radius,2);
+    app.get('building-type').value='communication';app.get('building-type').listeners.change();
+    app.get('building-width').value='-4';app.get('building-length').value='0';app.add();
+    app.get('object-status').value='placed';app.get('object-x').value='8';app.get('object-y').value='5';app.get('apply-object-properties').listeners.click();
+    assert.equal(app.state().objects[1].geometry.dx,-4);
+    assert.equal(app.run('document.querySelectorAll(".object-line").length'),1);
+    assert.ok(Math.abs(app.run('YardMap.areaSummary(project).covered')-4*Math.PI)<.001);
+    const restored=editor({storage});assert.deepEqual(JSON.parse(JSON.stringify(restored.state())),JSON.parse(JSON.stringify(app.state())));
+    app.get('object-width').value='0';app.get('object-length').value='0';app.get('apply-object-properties').listeners.click();
+    assert.equal(app.state().objects[1].geometry.dx,-4);assert.ok(app.get('object-properties-error').textContent);
+});

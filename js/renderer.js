@@ -21,6 +21,7 @@
         }
         render(project, selectedId, highlightedType, viewState = api.createViewportState()) {
             const analysis = api.analyzePlacement(project);
+            this.renderAreas(project);
             this.renderPlacementReport(project, analysis);
             this.plot.hidden = !project.plot;
             if (!project.plot) {
@@ -79,7 +80,10 @@
                 element.children[0].textContent = object.name;
                 element.setAttribute('aria-pressed',String(object.id === selectedId));
                 element.dataset.type = object.type;
-                element.title = `${object.name} ${object.width} × ${object.length} м`;
+                if(object.geometry?.kind==='circle')element.className+=' circle-object';
+                if(object.geometry?.kind==='line')element.className+=' line-object';
+                if(!definition.solid)element.className+=' overlay-object';
+                element.title = object.geometry?.kind==='circle'?`${object.name}: крона диаметром ${object.width} м; координаты ствола`:object.geometry?.kind==='line'?`${object.name}: линия ${Math.hypot(object.geometry.dx,object.geometry.dy).toFixed(2)} м`:`${object.name} ${object.width} × ${object.length} м`;
                 if (outside) element.title += ' — За границами участка';
                 if (object.locked) element.title += ' — Положение закреплено';
                 element.setAttribute('aria-label', element.title);
@@ -87,8 +91,18 @@
                 element.style.borderColor = definition.color.replace('0.7', '1');
                 element.style.boxShadow = highlightedType === object.type ? `0 0 0 2px ${definition.color.replace('0.7', '1')}` : '';
                 const scale = waiting ? Math.min(view.scale, 12, 160 / Math.max(size.width, size.length)) : view.scale;
-                element.style.width = size.width * scale + 'px';
-                element.style.height = size.length * scale + 'px';
+                element.dataset.renderScale=String(scale);
+                element.style.width = Math.max(object.geometry?.kind==='line'?12:0,size.width * scale) + 'px';
+                element.style.height = Math.max(object.geometry?.kind==='line'?12:0,size.length * scale) + 'px';
+                while(element.children.length>1)element.children[1].remove();
+                if(object.geometry?.kind==='circle') {
+                    const trunk=document.createElement('span');trunk.className='tree-trunk';trunk.setAttribute('aria-hidden','true');element.appendChild(trunk);
+                }
+                if(object.geometry?.kind==='line') {
+                    const points=api.linePoints({...object,x:0,y:0}),bounds=api.objectRect({...object,x:0,y:0});
+                    const line=document.createElement('span');line.className='object-line';line.setAttribute('aria-hidden','true');
+                    Object.assign(line.style,{left:(points[0].x-bounds.left)*scale+'px',top:(points[0].y-bounds.top)*scale+'px',width:Math.hypot(object.geometry.dx,object.geometry.dy)*scale+'px',backgroundColor:definition.color.replace('0.7','1'),transform:`rotate(${Math.atan2(points[1].y-points[0].y,points[1].x-points[0].x)}rad)`});element.appendChild(line);
+                }
                 if (waiting) {
                     const card = document.createElement('div');
                     card.className = 'waiting-card';
@@ -99,7 +113,8 @@
                     card.append(element, caption);
                     this.waitingArea.appendChild(card);
                 } else {
-                    const position = api.toScreen(object, view);
+                    const bounds=api.objectRect(object);
+                    const position = api.toScreen({x:bounds.left,y:bounds.top}, view);
                     element.style.left = position.x + 'px';
                     element.style.top = position.y + 'px';
                     if (element.parentElement !== this.container) this.container.appendChild(element);
@@ -111,6 +126,13 @@
             this.renderLegend(project,highlightedType);
             this.renderMeasurements(project, selectedId, view, analysis);
             return view;
+        }
+        renderAreas(project) {
+            const summary=api.areaSummary(project),text=document.getElementById('area-summary');
+            text.textContent=project.plot?`Участок: ${summary.plot.toFixed(2)} м² (${summary.sotkas.toFixed(2)} соток). Покрытие внутри участка: ≈${summary.covered.toFixed(2)} м² (${summary.percent.toFixed(2)}%).`:'Создайте участок для расчёта площади.';
+            const list=document.getElementById('area-categories');list.replaceChildren();
+            for(const [category,value] of Object.entries(summary.categories)){const item=document.createElement('li');item.textContent=`${api.categoryLabels[category]}: ≈${value.toFixed(2)} м²`;list.appendChild(item);}
+            this.areas=summary;
         }
         renderBorders(plot, view) {
             document.querySelectorAll('.plot-border').forEach(element => element.remove());
@@ -140,7 +162,9 @@
         renderLegend(project,highlightedType) {
             const legend = document.getElementById('legend-content');
             legend.replaceChildren();
-            for (const [type, definition] of Object.entries(api.definitions)) {
+            let lastCategory=null;
+            for (const [type, definition] of Object.entries(api.definitions).sort(([,a],[,b])=>Object.keys(api.categoryLabels).indexOf(a.category)-Object.keys(api.categoryLabels).indexOf(b.category))) {
+                if(lastCategory!==definition.category){const heading=document.createElement('h3');heading.className='legend-category';heading.textContent=api.categoryLabels[definition.category];legend.appendChild(heading);lastCategory=definition.category;}
                 const item = document.createElement('button');
                 item.type = 'button';
                 item.setAttribute('aria-pressed',String(type===highlightedType));
@@ -251,7 +275,7 @@
             this.container.appendChild(line);
             const label = document.createElement('div');
             label.className = 'distance-line distance-label';
-            label.textContent = options.status === 'overlap' ? 'Пересечение контуров'
+            label.textContent = options.status === 'allowed-overlay'?'Наложение зон / кроны (разрешено геометрией)':options.status === 'overlap' ? 'Пересечение контуров'
                 : `${distanceText(actual, required??0)} м${required===null?' — геометрическое измерение':` (минимум по выбранному правилу ${required} м)`}${options.status === 'touching' ? ' — касание' : ''}`;
             Object.assign(label.style, {
                 left: (a.x + b.x) / 2 + 'px', top: (a.y + b.y) / 2 + 'px',

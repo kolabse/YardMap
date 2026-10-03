@@ -2,7 +2,8 @@
     const choices = {
         territory:['unknown','gardening','other'], sewer:['unknown','yes','no'],
         ownership:['unknown','own','neighbor'],
-        purpose:['unknown','house','outbuilding','poultry','outdoor_toilet','biotoilet','bath','shower','well','garage','carport','open_parking','veranda'],
+        purpose:['unknown','house','outbuilding','poultry','outdoor_toilet','biotoilet','bath','shower','well','garage','carport','open_parking','veranda','tree','septic','compost','zone','infrastructure'],
+        treeClass:['unknown','high','medium','low'],septicKind:['unknown','septic','pit','graywater'],
         standalone:['unknown','yes','no'], measurement:['unknown','wall'], drainage:['unknown','own','neighbor'],
         lanes:['unknown','one','two'], kind:['redline','road_edge','fence','restriction']
     };
@@ -26,7 +27,9 @@
             standalone:choice(v.standalone,'standalone'),measurement:choice(v.measurement,'measurement'),
             projections:Object.fromEntries(sides.map(s=>[s,number(v.projections[s],'Выступ')])),
             height:number(v.height,'Высота'),drainage:choice(v.drainage,'drainage'),attachedTo:v.attachedTo,
-            windows:v.windows===null?null:v.windows.map(point) };
+            windows:v.windows===null?null:v.windows.map(point),
+            ...(v.treeClass!==undefined?{treeClass:choice(v.treeClass,'treeClass')}:{ }),
+            ...(v.septicKind!==undefined?{septicKind:choice(v.septicKind,'septicKind')}:{ }) };
     }
     function projectAssessment(value) {
         const v=value??{territory:'unknown',sewer:'unknown',localRoadMinimum:null,
@@ -43,12 +46,19 @@
         return {territory:choice(v.territory,'territory'),sewer:choice(v.sewer,'sewer'),localRoadMinimum:number(v.localRoadMinimum,'Местный отступ'),
             lanes:Object.fromEntries(['north','east','south','west'].map(s=>[s,choice(v.lanes[s],'lanes')])),constraints};
     }
+    function purposesForType(type) {
+        const specific={tree:'tree',septic:'septic',compost:'compost',communication:'infrastructure',gate:'infrastructure',bed:'zone',path:'zone',greenhouse:'outbuilding'};
+        return specific[type]?['unknown',specific[type]]:choices.purpose.filter(p=>!['tree','septic','compost','zone','infrastructure'].includes(p));
+    }
     function validateConnections(objects) {
         const ids=new Map(objects.map(o=>[o.id,o]));
         for(const o of objects) {
+            if(o.assessment&&!purposesForType(o.type).includes(o.assessment.purpose))throw new Error('Назначение несовместимо с типом объекта.');
+            if(o.geometry&&((o.assessment?.windows?.length??0)>0||o.assessment?.attachedTo))throw new Error('Окна и пристройки требуют контура постройки.');
             const seen=new Set([o.id]);let current=o;
             while(current?.assessment?.attachedTo) {
                 const id=current.assessment.attachedTo;
+                if(ids.get(id)?.geometry)throw new Error('Пристройка требует контура родительской постройки.');
                 if(!ids.has(id)||seen.has(id))throw new Error('Пристройка: объект отсутствует или связь циклическая.');
                 seen.add(id);current=ids.get(id);
             }
@@ -56,6 +66,6 @@
                 (p.x!==0&&p.x!==o.width&&p.y!==0&&p.y!==o.length))throw new Error('Окно должно находиться на стене исходного контура объекта.');
         }
     }
-    const api={assessmentChoices:choices,objectAssessment,projectAssessment,validateConnections};
+    const api={assessmentChoices:choices,objectAssessment,projectAssessment,purposesForType,validateConnections};
     if(typeof module!=='undefined'&&module.exports)module.exports=api;else Object.assign(globalThis.YardMap ||= {},api);
 })();

@@ -1,6 +1,7 @@
 (() => {
     const { definitions, borderLabels } = typeof module !== 'undefined' && module.exports
         ? require('./catalog.js') : globalThis.YardMap;
+    const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     const maxProjectFileBytes = 2 * 1024 * 1024;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
     function fail(message) { throw new Error(message); }
@@ -51,8 +52,11 @@
             if (object.locked !== undefined && typeof object.locked !== 'boolean') fail(`${label}: неверное состояние блокировки.`);
             if (object.status === 'waiting' ? object.x !== null || object.y !== null
                 : !Number.isFinite(object.x) || !Number.isFinite(object.y)) fail(`${label}: неверные координаты.`);
+            if(definitions[object.type].shape!=='rectangle'&&object.geometry===undefined)fail(`${label}: отсутствует геометрия.`);
+            const shape=shapes.canonicalShape(object.type,positive(object.width,label),positive(object.length,label),object.geometry);
+            if(shape.width!==object.width||shape.length!==object.length)fail(`${label}: размеры не соответствуют геометрии.`);
             return { id: object.id, type: object.type, name: name(object.name,label),
-                width: positive(object.width,label), length: positive(object.length,label),
+                ...shape,
                 rotation: object.rotation, x: object.x, y: object.y, status: object.status, locked: object.locked ?? false,
                 assessment:assessment.objectAssessment(object.assessment) };
         });

@@ -86,6 +86,7 @@ document.getElementById('cancel-import').addEventListener('click', cancelProject
 document.getElementById('building-type').addEventListener('change', () => {
     document.getElementById('building-size-controls').style.display = 'block';
     setFieldError('building-type', '');
+    configureCatalogDimensions();
 });
 document.getElementById('new-project').addEventListener('click', () => {
     document.getElementById('new-project-confirmation').hidden = false;
@@ -109,6 +110,7 @@ window.addEventListener('resize',resizeView);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resizeView).observe(plotContainer);
 window.addEventListener('blur',()=>cancelPointerGesture());
 document.addEventListener('keydown',event=>{if(event.key==='Escape')cancelPointerGesture();});
+renderCatalogChoices();
 restoreSavedProject();
 history.reset(project);
 render();
@@ -173,9 +175,15 @@ function createBuilding() {
     const type = document.getElementById('building-type').value;
     const validType = Object.hasOwn(YardMap.definitions, type);
     setFieldError('building-type', validType ? '' : 'Выберите тип постройки.');
-    const dimensions = readDimensions('building');
+    const kind=YardMap.definitions[type]?.shape;
+    const dimensions=kind==='line'?[Math.max(.1,Math.abs(Number(document.getElementById('building-width').value))),Math.max(.1,Math.abs(Number(document.getElementById('building-length').value)))]:
+        kind==='circle'?[Number(document.getElementById('building-width').value),Number(document.getElementById('building-width').value)]:readDimensions('building');
     if (!dimensions || !validType || !project.plot) return;
-    const object = YardMap.addObject(project, type, ...dimensions);
+    let object;
+    try {
+        if(kind==='line'&&['width','length'].some(s=>!document.getElementById('building-'+s).value.trim()))throw new Error('Укажите оба смещения отрезка.');
+        object=YardMap.addObject(project,type,...dimensions,kind==='line'?{kind:'line',dx:Number(document.getElementById('building-width').value),dy:Number(document.getElementById('building-length').value)}:undefined);
+    }catch(error){setFieldError('building-type',error.message);return;}
     selectedId = object.id;
     render();
     saveCommittedProject();
@@ -220,10 +228,12 @@ function startDrag(event) {
     if (object.locked) { event.preventDefault(); return; }
     const rect = event.currentTarget.getBoundingClientRect();
     const size = YardMap.objectSize(object);
+    const footprint=YardMap.objectRect({...object,x:object.x??0,y:object.y??0});
+    const drawScale=Number(event.currentTarget.dataset.renderScale)||rect.width/size.width;
     activeDrag = {
         id, before: { ...object }, pointerId:event.pointerId ?? null,
-        offsetX: (event.clientX - rect.left) / rect.width * size.width,
-        offsetY: (event.clientY - rect.top) / rect.height * size.length
+        offsetX: (event.clientX - rect.left) / drawScale - ((object.x??0)-footprint.left),
+        offsetY: (event.clientY - rect.top) / drawScale - ((object.y??0)-footprint.top)
     };
     selectedId = id;
     document.addEventListener('pointermove', drag);
@@ -606,7 +616,9 @@ function renderObjectProperties() {
     if (objectPanelId!==object.id || !objectPanelDirty) {
         if(objectPanelId!==object.id) document.getElementById('object-properties-error').textContent='';
         objectPanelId=object.id;objectPanelDirty=false;
+        configureObjectDimensions(object);
         for(const field of ['name','width','length','x','y','rotation','status']) document.getElementById(`object-${field}`).value=object[field]===null?'':String(object[field]);
+        if(object.geometry?.kind==='line'){document.getElementById('object-width').value=String(object.geometry.dx);document.getElementById('object-length').value=String(object.geometry.dy);}
     }
     updatePositionInputs();
     document.getElementById('rotate-object').disabled=object.locked;
@@ -615,8 +627,10 @@ function renderObjectProperties() {
     const offsets=object.status==='placed'?YardMap.borderDistances(project.plot,object):null;
     const names={left:'Запад',top:'Север',right:'Восток',bottom:'Юг'};
     document.getElementById('object-offsets').textContent=offsets
-        ? 'Отступы до сторон: '+Object.entries(offsets).map(([side,value])=>`${names[side]}: ${Number(value.toPrecision(12))} м`).join('; ')
+        ? (object.geometry?.kind==='circle'?'Отступы края кроны до сторон (правило дерева — от ствола): ':'Отступы до сторон: ')+Object.entries(offsets).map(([side,value])=>`${names[side]}: ${Number(value.toPrecision(12))} м`).join('; ')
         : 'Объект в ожидании: координаты и отступы не заданы.';
+    const area=renderer.areas?.objects.find(item=>item.id===object.id)?.area;
+    if(area!==undefined)document.getElementById('object-offsets').textContent+=` Площадь внутри участка: ≈${area.toFixed(2)} м².`;
 }
 function updatePositionInputs() {
     const object=selectedObject();if(!object)return;
@@ -641,7 +655,10 @@ function applyObjectProperties() {
         const value=field=>document.getElementById(`object-${field}`).value;
         const status=value('status');
         if(status==='placed' && (!value('x').trim() || !value('y').trim())) throw new Error('Укажите координаты X и Y.');
-        YardMap.updateObject(project,object.id,{name:value('name'),width:Number(value('width')),length:Number(value('length')),
+        const line=object.geometry?.kind==='line';
+        if(['width','length'].some(k=>!value(k).trim()&&(!line&&k==='length'&&object.geometry?.kind==='circle'?false:true)))throw new Error('Укажите размеры / смещения объекта.');
+        YardMap.updateObject(project,object.id,{name:value('name'),width:line?Math.max(.1,Math.abs(Number(value('width')))):Number(value('width')),length:line?Math.max(.1,Math.abs(Number(value('length')))):Number(value('length')),
+            ...(line?{geometry:{kind:'line',dx:Number(value('width')),dy:Number(value('length'))}}:{}),
             rotation:Number(value('rotation')),status,x:status==='waiting'?null:Number(value('x')),y:status==='waiting'?null:Number(value('y')),
             assessment:readObjectAssessment()});
     });
@@ -670,4 +687,35 @@ function handleObjectKeyDown(event) {
     if(!Number.isFinite(step) || step<=0) {document.getElementById('object-properties-error').textContent='Шаг перемещения должен быть положительным числом.';return;}
     const [dx,dy]=directions[event.key];
     editSelectedObject(item=>YardMap.placeObject(project,item.id,item.x+dx*step,item.y+dy*step));
+}
+
+function renderCatalogChoices() {
+    const select=document.getElementById('building-type'),value=select.value;select.replaceChildren();
+    const empty=document.createElement('option');empty.value='';empty.textContent='Выбрать';select.appendChild(empty);
+    for(const [category,name] of Object.entries(YardMap.categoryLabels)) {
+        const group=document.createElement('optgroup');group.label=name;
+        for(const [type,d] of Object.entries(YardMap.definitions))if(d.category===category){const option=document.createElement('option');option.value=type;option.textContent=d.name;group.appendChild(option);}
+        select.appendChild(group);
+    }
+    select.value=Object.hasOwn(YardMap.definitions,value)?value:'';
+}
+function configureDimensionLabels(prefix,kind) {
+    document.getElementById(prefix+'-width-label').textContent=kind==='circle'?'Диаметр кроны (м)':kind==='line'?'Смещение конца по X (м)':'Ширина (м)';
+    document.getElementById(prefix+'-length-label').textContent=kind==='line'?'Смещение конца по Y (м)':'Длина (м)';
+    document.getElementById(prefix+'-length').hidden=kind==='circle';document.getElementById(prefix+'-length-label').hidden=kind==='circle';
+    for(const key of ['width','length']) {
+        const field=document.getElementById(prefix+'-'+key);field.setAttribute('aria-label',kind==='line'?'Смещение конца по '+(key==='width'?'X':'Y')+' (м)':kind==='circle'?'Диаметр кроны (м)':key==='width'?'Ширина (м)':'Длина (м)');
+        if(kind==='line')field.removeAttribute?.('min');else field.setAttribute('min','0');
+    }
+}
+function configureCatalogDimensions() {
+    const type=document.getElementById('building-type').value,kind=YardMap.definitions[type]?.shape;
+    configureDimensionLabels('building',kind);
+    if(kind==='circle'){document.getElementById('building-width').value='4';document.getElementById('building-length').value='4';}
+    if(kind==='line'){document.getElementById('building-width').value='4';document.getElementById('building-length').value='0';}
+    if(kind==='rectangle'&&Number(document.getElementById('building-length').value)<=0)document.getElementById('building-length').value='3';
+}
+function configureObjectDimensions(object) {
+    const kind=object.geometry?.kind;configureDimensionLabels('object',kind);
+    document.getElementById('object-anchor-note').textContent=kind==='circle'?'X / Y — положение ствола. Круг — проекция кроны.':kind==='line'?'X / Y — начало линии. Смещения задаются до поворота; отрицательные значения разрешены. Линия не занимает площадь.':'X / Y — северо-западный угол прямоугольника.';
 }
