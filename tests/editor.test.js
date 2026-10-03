@@ -147,6 +147,29 @@ function savedProject(text) {
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
 
+test('rule settings and object properties recompute warnings, focus pair and persist through undo',()=>{
+    const app=editor();app.add();app.place(2,4);
+    app.get('assessment-territory').value='gardening';app.get('assessment-sewer').value='no';
+    app.get('assessment-local-road').value='';
+    for(const side of ['north','east','south','west'])app.get('assessment-lanes-'+side).value='unknown';
+    assert.equal(typeof app.get('apply-assessment').listeners.click,'function');
+    app.run('applyAssessmentSettings()');app.get('west-side').value='neighbor';
+    app.run('YardMap.setBorder(project,"west","neighbor")');
+    app.get('object-ownership').value='own';app.get('object-purpose').value='house';
+    app.get('object-standalone').value='yes';app.get('object-measurement').value='wall';
+    for(const side of ['left','right','top','bottom'])app.get('object-projection-'+side).value='0';
+    app.get('object-height').value='3';app.get('object-drainage').value='own';app.get('object-attached-to').value='';
+    app.run('applyObjectProperties()');
+    assert.ok(app.run('YardMap.analyzePlacement(project).checks.some(c=>c.ruleId==="B01"&&c.status==="violation")'));
+    assert.ok(app.run('document.querySelectorAll(".rule-result").some(e=>e.dataset.ruleId==="B01")'));
+    app.run('focusPlacementCheck(YardMap.analyzePlacement(project).checks.find(c=>c.ruleId==="B01"))');
+    assert.equal(app.run('selectedId'),app.state().objects[0].id);
+    assert.ok(app.run('viewState.zoom>=1'));
+    const saved=app.run('YardMap.parseProject(YardMap.serializeProject(project))');
+    assert.equal(saved.objects[0].assessment.purpose,'house');
+    app.run('undoAction()');assert.equal(app.state().objects[0].assessment.purpose,'unknown');
+});
+
 test('pointer gestures capture touch on stable canvas and commit one completed movement', () => {
     const storage=memoryStorage(),app=editor({storage});app.add();
     assert.equal(app.run('typeof renderer.elements.get(selectedId).listeners.pointerdown'),'function','pointer input is wired');
@@ -887,18 +910,18 @@ test('placement report distinguishes allowed parking contact from overlap and in
     assert.match(app.get('placement-summary').textContent, /Касаний: 1/);
     assert.equal(app.run('document.querySelectorAll(".placement-issue").length'), 0);
     assert.equal(app.run('document.querySelectorAll(".invalid-building").length'), 0);
-    app.run('project.objects[1].type = "house"; render()');
+    app.run('project.assessment.territory="gardening"; project.objects.slice(0,2).forEach((o,i)=>Object.assign(o.assessment,{ownership:"own",purpose:i?"bath":"house",standalone:"yes",measurement:"wall",projections:{left:0,right:0,top:0,bottom:0}})); project.objects[1].type = "banya"; render()');
     assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "object-gap").length'), 1);
 });
 
 test('placement report checks all placed objects and excludes waiting objects', () => {
     const app = editor(); app.add(); app.place(3, 4);
     app.add();
-    app.run('YardMap.placeObject(project, project.objects[1].id, 9, 4); selectedId = null; render()');
+    app.run('project.assessment.territory="gardening"; project.objects.slice(0,2).forEach((o,i)=>Object.assign(o.assessment,{ownership:"own",purpose:i?"bath":"house",standalone:"yes",measurement:"wall",projections:{left:0,right:0,top:0,bottom:0}})); YardMap.setPlot(project,40,40); YardMap.placeObject(project, project.objects[1].id, 9, 4); selectedId = null; render()');
     app.add(); // waiting object is now selected
     assert.equal(app.run('document.querySelectorAll(".placement-issue").filter(el => el.dataset.kind === "object-gap").length'), 1);
     assert.equal(app.get('placement-summary').dataset.checkedObjects, '2');
-    app.run('YardMap.placeObject(project, project.objects[1].id, 12, 4); render()');
+    app.run('YardMap.placeObject(project, project.objects[1].id, 16, 4); render()');
     assert.equal(app.run('document.querySelectorAll(".placement-issue").length'), 0);
 });
 
@@ -921,16 +944,34 @@ test('pair measurement connects closest rectangle points for a diagonal gap', ()
     assert.ok(Math.abs(parseFloat(line.style.top) - app.run('view.top + 10 * view.scale')) < 1e-9);
 });
 
-test('distance labels explicitly describe preliminary thresholds rather than verified legal minima', () => {
+test('unknown properties show geometric measurements without normative thresholds', () => {
     const app = editor(); app.add(); app.place(3, 4);
     const labels = app.run('document.querySelectorAll(".distance-label").map(el => el.textContent).join("|")');
-    assert.match(labels, /задано/);
+    assert.match(labels, /геометрическое измерение/);
     assert.doesNotMatch(labels, /мин\./);
 });
 
 test('near-threshold labels do not round an insufficient offset up to its threshold', () => {
     const app = editor(); app.add(); app.place(2.99999, 4);
-    assert.match(app.run('document.querySelectorAll(".distance-label")[0].textContent'), /^2\.99999 /);
+    app.run('project.assessment.territory="gardening"; project.plot.borders.west="neighbor"; Object.assign(project.objects[0].assessment,{ownership:"own",purpose:"house",measurement:"wall",projections:{left:0,right:0,top:0,bottom:0}}); render()');
+    assert.match(app.run('document.querySelectorAll(".rule-result").find(el=>el.dataset.ruleId==="B01"&&el.dataset.status==="violation").children[0].textContent'), /2\.99999 м/);
     app.place(-0.00001, 4);
     assert.match(app.run('document.querySelectorAll(".distance-label")[0].textContent'), /^-0\.00001 /);
+});
+
+test('user restriction lines persist, focus and undo independently of normative profile',()=>{
+    const app=editor();app.add();app.place(3,4);
+    for(const [id,value] of Object.entries({kind:'redline',name:'Мой отступ',x1:'1',y1:'0',x2:'1',y2:'35',minimum:'3'}))app.get('constraint-'+id).value=value;
+    app.get('add-constraint').listeners.click();
+    assert.equal(app.state().assessment.constraints.length,1);
+    assert.equal(app.run('renderer.elements.size'),1);
+    assert.equal(app.run('document.querySelectorAll(".restriction-line").length'),1);
+    app.run('focusPlacementCheck(YardMap.analyzePlacement(project).checks.find(c=>c.ruleId==="U01"))');
+    assert.equal(app.run('document.querySelectorAll(".focused-constraint").length'),1);
+    app.run('undoAction()');assert.equal(app.state().assessment.constraints.length,0);
+    app.run('redoAction()');assert.equal(app.state().assessment.constraints.length,1);
+    app.get('constraint-y2').value='0';
+    app.get('add-constraint').listeners.click();
+    assert.equal(app.state().assessment.constraints.length,1);
+    assert.ok(app.get('constraint-error').textContent);
 });

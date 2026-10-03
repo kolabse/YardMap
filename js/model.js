@@ -1,6 +1,7 @@
 (() => {
     const { definitions, borderLabels } = typeof module !== 'undefined' && module.exports
         ? require('./catalog.js') : globalThis.YardMap;
+    const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
 
     function validateSize(width, length) {
         if (![width, length].every(value => Number.isFinite(value) && value > 0)) {
@@ -9,7 +10,7 @@
     }
 
     function createProject() {
-        return { version: 1, name: 'Мой участок', settings: { units: 'm' }, plot: null, objects: [], nextObjectId: 1 };
+        return { version: 1, name: 'Мой участок', settings: { units: 'm' }, assessment:assessment.projectAssessment(), plot: null, objects: [], nextObjectId: 1 };
     }
 
     function setPlot(project, width, length) {
@@ -32,7 +33,7 @@
         validateSize(width, length);
         const object = {
             id: `object-${project.nextObjectId++}`, type, name: definitions[type].name,
-            width, length, rotation: 0, x: null, y: null, status: 'waiting', locked: false
+            width, length, rotation: 0, x: null, y: null, status: 'waiting', locked: false, assessment:assessment.objectAssessment()
         };
         project.objects.push(object);
         return object;
@@ -64,8 +65,11 @@
         if (next.status === 'placed' && ![next.x,next.y].every(Number.isFinite)) throw new RangeError('Координаты должны быть конечными числами');
         if (typeof next.locked !== 'boolean') throw new RangeError('Неверное состояние блокировки');
         if (object.locked && ['x','y','rotation','status'].some(key => next[key] !== object[key])) throw new RangeError('Положение объекта закреплено');
+        next.assessment=assessment.objectAssessment(next.assessment);
+        if(next.rotation!==object.rotation)next.assessment.projections={left:null,right:null,top:null,bottom:null};
+        assessment.validateConnections(project.objects.map(o=>o.id===id?next:o));
         Object.assign(object,{ name:next.name,width:next.width,length:next.length,rotation:next.rotation,
-            status:next.status,x:next.status==='waiting'?null:next.x,y:next.status==='waiting'?null:next.y,locked:next.locked });
+            status:next.status,x:next.status==='waiting'?null:next.x,y:next.status==='waiting'?null:next.y,locked:next.locked,assessment:next.assessment });
         return object;
     }
     function copyObject(project,id) {
@@ -73,9 +77,13 @@
         if (!source) throw new RangeError('Объект не найден');
         const copy = addObject(project,source.type,source.width,source.length);
         copy.name = source.name.slice(0,190)+' (копия)'; copy.rotation=source.rotation;
+        copy.assessment=assessment.objectAssessment(source.assessment);copy.assessment.attachedTo=null;
         return copy;
     }
-    function deleteObject(project,id) { project.objects=project.objects.filter(item=>item.id!==id); }
+    function deleteObject(project,id) {
+        project.objects=project.objects.filter(item=>item.id!==id);
+        for(const o of project.objects)if(o.assessment?.attachedTo===id)o.assessment.attachedTo=null;
+    }
     const api = { createProject, setPlot, setBorder, addObject, placeObject, returnToWaiting, updateObject, copyObject, deleteObject };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);

@@ -56,7 +56,25 @@
     function toMetres(point, view) {
         return { x: (point.x - view.left) / view.scale, y: (point.y - view.top) / view.scale };
     }
-    const api = { objectSize, objectRect, borderDistances, rectangleDistance, rectangleMeasurement, geometryEpsilon, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
+    function rectangleSegmentMeasurement(rect,line) {
+        const a={x:line.x1,y:line.y1},b={x:line.x2,y:line.y2};
+        const clamp=(v,lo,hi)=>Math.max(lo,Math.min(v,hi));
+        const corners=[{x:rect.left,y:rect.top},{x:rect.right,y:rect.top},{x:rect.right,y:rect.bottom},{x:rect.left,y:rect.bottom}];
+        const candidates=[a,b].map(p=>({start:{x:clamp(p.x,rect.left,rect.right),y:clamp(p.y,rect.top,rect.bottom)},end:p}));
+        const dx=b.x-a.x,dy=b.y-a.y;
+        for(const p of corners) {
+            const t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy),0,1);
+            candidates.push({start:p,end:{x:a.x+t*dx,y:a.y+t*dy}});
+        }
+        // Liang–Barsky segment clipping: an intersection has distance zero.
+        let lo=0,hi=1,hit=true;
+        for(const [p,q] of [[-dx,a.x-rect.left],[dx,rect.right-a.x],[-dy,a.y-rect.top],[dy,rect.bottom-a.y]]) {
+            if(p===0){if(q<0)hit=false;}else {const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);}
+        }
+        if(hit&&lo<=hi){const p={x:a.x+lo*dx,y:a.y+lo*dy};return {start:p,end:p,distance:0};}
+        return candidates.map(m=>({...m,distance:Math.hypot(m.start.x-m.end.x,m.start.y-m.end.y)})).sort((x,y)=>x.distance-y.distance)[0];
+    }
+    const api = { objectSize, objectRect, borderDistances, rectangleDistance, rectangleMeasurement, rectangleSegmentMeasurement,geometryEpsilon, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();

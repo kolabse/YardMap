@@ -2,6 +2,7 @@
     const { definitions, borderLabels } = typeof module !== 'undefined' && module.exports
         ? require('./catalog.js') : globalThis.YardMap;
     const maxProjectFileBytes = 2 * 1024 * 1024;
+    const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
     function fail(message) { throw new Error(message); }
     function record(value, label) {
         if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label}: ожидается объект.`);
@@ -52,11 +53,13 @@
                 : !Number.isFinite(object.x) || !Number.isFinite(object.y)) fail(`${label}: неверные координаты.`);
             return { id: object.id, type: object.type, name: name(object.name,label),
                 width: positive(object.width,label), length: positive(object.length,label),
-                rotation: object.rotation, x: object.x, y: object.y, status: object.status, locked: object.locked ?? false };
+                rotation: object.rotation, x: object.x, y: object.y, status: object.status, locked: object.locked ?? false,
+                assessment:assessment.objectAssessment(object.assessment) };
         });
         if (!Number.isSafeInteger(data.nextObjectId) || data.nextObjectId <= largestId || data.nextObjectId < 1
             || data.nextObjectId >= Number.MAX_SAFE_INTEGER) fail('Неверный счётчик ID объектов.');
-        return { version: 1, name: projectName, settings: { units: 'm' }, plot, objects, nextObjectId: data.nextObjectId };
+        assessment.validateConnections(objects);
+        return { version: 1, name: projectName, settings: { units: 'm' }, assessment:assessment.projectAssessment(data.assessment),plot, objects, nextObjectId: data.nextObjectId };
     }
     function parseProject(text) {
         if (typeof text !== 'string') fail('Ожидается текст файла JSON.');

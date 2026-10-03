@@ -4,7 +4,7 @@
         const value = Math.abs(actual) <= api.geometryEpsilon ? 0 : actual;
         let precision = 3;
         while (precision < 9 && ((value < 0 && Number(value.toFixed(precision)) === 0)
-            || (value + api.geometryEpsilon < required && Number(value.toFixed(precision)) >= required))) {
+            || (value < required && Number(value.toFixed(precision)) >= required))) {
             precision++;
         }
         return value.toFixed(precision);
@@ -28,6 +28,7 @@
                 this.waitingArea.replaceChildren();
                 document.querySelectorAll('.distance-line').forEach(element => element.remove());
                 document.querySelectorAll('.plot-border').forEach(element => element.remove());
+                document.querySelectorAll('.restriction-line').forEach(element=>element.remove());
                 document.getElementById('outside-warning').textContent = '';
                 this.renderLegend(project,highlightedType); return null;
             }
@@ -41,6 +42,7 @@
                 left: view.left + 'px', top: view.top + 'px'
             });
             this.renderBorders(project.plot, view);
+            this.renderConstraints(project, view);
             this.waitingArea.replaceChildren();
             const liveIds = new Set(project.objects.map(object => object.id));
             const outsideObjects = [];
@@ -65,13 +67,15 @@
                 const definition = api.definitions[object.type];
                 const size = api.objectSize(object);
                 const waiting = object.status === 'waiting';
-                const outside = !waiting && !api.isInsidePlot(project.plot, object);
+                const outside = !waiting && object.assessment?.ownership!=='neighbor' && !api.isInsidePlot(project.plot, object);
                 if (outside) outsideObjects.push(object);
                 element.className = 'building' + (waiting ? ' waiting-building' : '')
                     + (outside ? ' outside-building' : '')
                     + (analysis.invalidObjectIds.has(object.id) ? ' invalid-building' : '')
                     + (object.id === selectedId ? ' selected-building' : '');
                 if (object.locked) element.className += ' locked-building';
+                if(object.assessment?.ownership==='neighbor')element.className+=' neighbor-building';
+                if(this.focusedCheck?.objectIds.includes(object.id))element.className+=' focused-building';
                 element.children[0].textContent = object.name;
                 element.setAttribute('aria-pressed',String(object.id === selectedId));
                 element.dataset.type = object.type;
@@ -118,8 +122,19 @@
                 if (!type) continue;
                 const border = document.createElement('div');
                 border.className = `plot-border ${side}-border border-${type}`;
+                if({left:'west',right:'east',top:'north',bottom:'south'}[this.focusedCheck?.side]===side)border.className+=' focused-border';
                 border.textContent = api.borderLabels[type];
                 this.container.appendChild(border);
+            }
+        }
+        renderConstraints(project,view) {
+            document.querySelectorAll('.restriction-line').forEach(el=>el.remove());
+            for(const c of project.assessment.constraints) {
+                const a=api.toScreen({x:c.x1,y:c.y1},view),b=api.toScreen({x:c.x2,y:c.y2},view);
+                const line=document.createElement('div');line.className='restriction-line';line.title=c.name;
+                if(this.focusedCheck?.lineId===c.id)line.className+=' focused-constraint';
+                Object.assign(line.style,{left:a.x+'px',top:a.y+'px',width:Math.hypot(b.x-a.x,b.y-a.y)+'px',transform:`rotate(${Math.atan2(b.y-a.y,b.x-a.x)}rad)`});
+                this.container.appendChild(line);
             }
         }
         renderLegend(project,highlightedType) {
@@ -153,6 +168,7 @@
             const sideNames = { left: 'западной', right: 'восточной', top: 'северной', bottom: 'южной' };
             for (const issue of analysis.issues) {
                 const names = issue.objectIds.map(id => project.objects.find(object => object.id === id).name);
+                if(issue.ruleId)continue;
                 const item = document.createElement('li');
                 item.className = 'placement-issue';
                 item.dataset.kind = issue.kind;
@@ -164,6 +180,33 @@
                     item.textContent = `${names.join(' ↔ ')}: ${distanceText(issue.actual, issue.required)} м между контурами; задано ${issue.required} м.`;
                 } else {
                     item.textContent = `${names[0]}: ${distanceText(issue.actual, issue.required)} м до ${sideNames[issue.side]} границы; задано ${issue.required} м.`;
+                }
+                const button=document.createElement('button');button.type='button';button.textContent=item.textContent;item.textContent='';
+                button.addEventListener('click',()=>globalThis.focusPlacementCheck({...issue,title:'Геометрия размещения',missing:[]}));item.appendChild(button);
+                list.appendChild(item);
+            }
+            const labels={pass:'Расстояние выдержано по пункту',violation:'Меньше значения пункта',insufficient_data:'Недостаточно данных',source_pending:'Источник не проверен полностью',not_applicable:'Не применяется'};
+            const countStatus=s=>analysis.checks.filter(c=>c.status===s).length;
+            summary.textContent+=` По правилам: отклонений ${countStatus('violation')}, неполных проверок ${countStatus('insufficient_data')+countStatus('source_pending')}. Это не заключение о законности или безопасности участка.`;
+            const filter=document.getElementById('rule-filter').value||'warnings';
+            for(const c of analysis.checks) {
+                if(filter==='warnings'&&['pass','not_applicable'].includes(c.status))continue;
+                if(filter==='violations'&&c.status!=='violation')continue;
+                const item=document.createElement('li');item.className='rule-result'+(c.status==='violation'?' placement-issue':'');
+                item.dataset.ruleId=c.ruleId;item.dataset.status=c.status;item.dataset.kind=c.side?'border-gap':'object-gap';
+                const button=document.createElement('button');button.type='button';
+                const names=c.objectIds.map(id=>project.objects.find(o=>o.id===id)?.name).join(' ↔ ');
+                const metric=c.metric==='condition'?'Условие соединения/стока':c.actual===null?'Расстояние не определено':`${distanceText(c.actual,c.required??0)} м${c.required===null?'':`; минимум ${c.required} м`}`;
+                button.textContent=`${names}${c.side?' — '+sideNames[c.side]+' стороны':''}: ${c.title}. ${labels[c.status]}. ${metric}.`;
+                button.addEventListener('click',()=>globalThis.focusPlacementCheck(c));
+                item.appendChild(button);
+                const explanation=document.createElement('p');
+                explanation.textContent=`${c.category==='user'?'Пользовательское ограничение':c.category==='geometry'?'Геометрия соединения':'Требование документа'}. ${c.reason||''}${c.missing.length?' Нужно указать: '+c.missing.join(', ')+'.':''}`;
+                item.appendChild(explanation);
+                if(c.source) {
+                    const link=document.createElement('a');link.href=c.source.url;link.target='_blank';link.rel='noopener';
+                    link.textContent=`${c.source.document}, п. ${c.clause}; редакция ${c.source.revision||"не сверена"}; проверено ${c.source.checkedAt}`;item.appendChild(link);
+                    if(c.source.amendmentUrl){const amendment=document.createElement('a');amendment.href=c.source.amendmentUrl;amendment.target='_blank';amendment.rel='noopener';amendment.textContent=' Изменение №1';item.appendChild(amendment);}
                 }
                 list.appendChild(item);
             }
@@ -182,8 +225,10 @@
                 bottom: [{ x: centre.x, y: rect.bottom }, { x: centre.x, y: project.plot.length }]
             };
             for (const [side, points] of Object.entries(segments)) {
-                this.distanceLine(points[0], points[1], distances[side], api.requiredBorderDistance(object.type), view);
+                this.distanceLine(points[0], points[1], distances[side], null, view);
             }
+            const current=analysis.checks.find(c=>this.focusedCheck&&c.ruleId===this.focusedCheck.ruleId&&c.side===this.focusedCheck.side&&c.lineId===this.focusedCheck.lineId&&c.windowIndex===this.focusedCheck.windowIndex&&c.objectIds.join('|')===this.focusedCheck.objectIds.join('|'));
+            if(current?.start&&current.end)this.distanceLine(current.start,current.end,current.actual,current.required,view,{pair:true,status:current.status});
             for (const pair of analysis.pairs) {
                 if (!pair.objectIds.includes(object.id)) continue;
                 const reversed = pair.objectIds[1] === object.id;
@@ -193,23 +238,24 @@
         }
         distanceLine(start, end, actual, required, view, options = {}) {
             const a = api.toScreen(start, view), b = api.toScreen(end, view);
-            const ok = options.status !== 'overlap' && actual + api.geometryEpsilon >= required;
+            const ok = options.status !== 'overlap' && (required===null || actual >= required);
+            const color=options.status==='overlap'?'#f44336':required===null?'#546e7a':ok?'#4caf50':'#f44336';
             const line = document.createElement('div');
             line.className = 'distance-line' + (options.pair ? ' pair-measurement' : '');
             if (options.status) line.dataset.status = options.status;
             Object.assign(line.style, {
                 left: a.x + 'px', top: a.y + 'px', width: Math.hypot(b.x - a.x, b.y - a.y) + 'px',
-                height: '2px', backgroundColor: ok ? '#4caf50' : '#f44336', transformOrigin: '0 0',
+                height: '2px', backgroundColor: color, transformOrigin: '0 0',
                 transform: `rotate(${Math.atan2(b.y - a.y, b.x - a.x)}rad)`
             });
             this.container.appendChild(line);
             const label = document.createElement('div');
             label.className = 'distance-line distance-label';
             label.textContent = options.status === 'overlap' ? 'Пересечение контуров'
-                : `${distanceText(actual, required)} м (задано ${required} м)${options.status === 'touching' ? ' — касание' : ''}`;
+                : `${distanceText(actual, required??0)} м${required===null?' — геометрическое измерение':` (минимум по выбранному правилу ${required} м)`}${options.status === 'touching' ? ' — касание' : ''}`;
             Object.assign(label.style, {
                 left: (a.x + b.x) / 2 + 'px', top: (a.y + b.y) / 2 + 'px',
-                borderColor: ok ? '#4caf50' : '#f44336'
+                borderColor: color
             });
             this.container.appendChild(label);
         }
