@@ -2,6 +2,7 @@
     const { definitions, borderLabels } = typeof module !== 'undefined' && module.exports
         ? require('./catalog.js') : globalThis.YardMap;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
+    const background = typeof module !== 'undefined' && module.exports ? require('./background.js') : globalThis.YardMap;
 
     const plots=typeof module!=='undefined'&&module.exports?require('./plot-geometry.js'):globalThis.YardMap;
     const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
@@ -97,7 +98,7 @@
         project.objects=project.objects.filter(item=>item.id!==id);
         for(const o of project.objects)if(o.assessment?.attachedTo===id)o.assessment.attachedTo=null;
     }
-    const api = { createProject, setPlot, setPolygon,setBorder, addObject, placeObject, returnToWaiting, updateObject, copyObject, deleteObject };
+    const api = {setBackground:background.setBackground,updateBackground:background.updateBackground,calibrateBackground:background.calibrateBackground, createProject, setPlot, setPolygon,setBorder, addObject, placeObject, returnToWaiting, updateObject, copyObject, deleteObject };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();

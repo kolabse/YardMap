@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+<rect width="100%" height="100%" fill="white"/>
+<g font-family="Arial, sans-serif" fill="#263238">
+<text x="10" y="12" font-size="5" >Сад у озера</text>
+<text x="10" y="19" font-size="3" >A4 · альбомная · 297 × 210 мм · Масштаб 1:250 · Участок 732.88 м²</text>
+<defs><clipPath id="plot-clip"><polygon points="0,0 20.5,0 20.5,35.75 0,35.75"/></clipPath></defs>
+<g transform="translate(107.5 28) scale(4)">
+<polygon points="0,0 20.5,0 20.5,35.75 0,35.75" fill="#f0f7ed"/>
+<polygon points="0,0 20.5,0 20.5,35.75 0,35.75" fill="none" stroke="#263238" stroke-width="0.1"/>
+<rect x="4" y="5" width="6.5" height="5.25" fill="rgba(66, 165, 245, 0.7)" stroke="#37474f" stroke-width="0.075"/>
+<text x="7.25" y="7.625" font-size="0.65" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="0.15">Наш дом</text>
+<text x="10.25" y="-0.4" font-size="0.675" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="0.175">20.50 м · Дорога</text>
+<text x="20.5" y="17.475" font-size="0.675" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="0.175">35.75 м · Сосед</text>
+<text x="10.25" y="35.35" font-size="0.675" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="0.175">20.50 м · Лес</text>
+<text x="0" y="17.475" font-size="0.675" text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="0.175">35.75 м</text>
+</g>
+<text x="10" y="181" font-size="3.5" >Легенда</text>
+<rect x="10" y="184" width="3" height="3" fill="rgba(66, 165, 245, 0.7)"/>
+<text x="15" y="187" font-size="3" >Дом: 1</text>
+<line x1="10" y1="200" x2="50" y2="200" stroke="black" stroke-width=".7"/>
+<text x="10" y="197" font-size="2.8" >Масштабная линейка: 10 м</text>
+<text x="148.5" y="200" font-size="2.8" >В ожидании: 1. Печать: 100%, без подгонки.</text>
+</g></svg>

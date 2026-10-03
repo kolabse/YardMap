@@ -124,6 +124,8 @@ function render() {
     renderObjectProperties();
     if(typeof renderAssessmentControls==='function')renderAssessmentControls();
     if(typeof plotDraftIdentity!=='undefined')renderPlotContour();
+    YardMap.renderBackgroundControls?.();
+    YardMap.invalidatePlanPreview?.();
     if (project.plot) {
         document.getElementById('create-plot').textContent = project.plot.kind==='polygon'?'Сделать прямоугольным':'Изменить размеры';
         document.getElementById('plot-summary').textContent = project.plot.kind==='polygon'?`Контур: ${project.plot.vertices.length} сторон, ${YardMap.plotArea(project.plot).toFixed(2)} м²`:`Текущий участок: ${project.plot.width} × ${project.plot.length} м`;
@@ -467,6 +469,7 @@ function createVariant() {
     plan.name = `Вариант ${layouts.nextVariantId}`;
     plan.plot = project.plot ? JSON.parse(JSON.stringify(project.plot)) : null;
     plan.settings = { ...project.settings };
+    if(project.background)plan.background=JSON.parse(JSON.stringify(project.background));
     addVariant(plan);
 }
 function copyVariant() {

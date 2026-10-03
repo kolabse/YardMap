@@ -444,3 +444,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible, .building:focus-vi
 #plot-vertices label { display: block; margin-top: 6px; }
 #plot-vertices input, #plot-vertices select { width: 100%; box-sizing: border-box; }
 #plot-vertices button { margin: 8px 4px 0 0; }
+.plot-background { position: absolute; pointer-events: none; user-select: none; }
+#plot { overflow: hidden; }
+#background-preview, #export-preview { display: block; max-width: 100%; height: auto; }
+#background-preview { max-height: none; cursor: crosshair; outline: 1px solid #90a4ae; }
+#background-panel label, #export-panel label { display: block; margin-top: 8px; }
+#background-panel input[type=number], #export-panel input, #export-panel select { max-width: 100%; box-sizing: border-box; }
+#background-panel button, #export-panel button { margin-top: 8px; }
+.print-frame { position: fixed; left: -10000px; width: 1px; height: 1px; border: 0; }

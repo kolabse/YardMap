@@ -296,6 +296,42 @@
         <button type="button" id="reset-plot-contour">Сбросить правки вершин</button>
         <p id="plot-contour-error" class="field-error" role="alert"></p>
     </details>
+    <details id="background-panel" class="input-section">
+        <summary>Подложка из изображения</summary>
+        <p>Локальное PNG/JPEG/WebP до 1 МиБ. Изображение включается в JSON и хранится в этом браузере вместе с вариантом. Начальный размер приблизительный: откалибруйте его по известному расстоянию. Подложка обрезается по контуру участка.</p>
+        <label for="background-file">Загрузить или заменить изображение</label><input id="background-file" type="file" accept="image/png,image/jpeg,image/webp">
+        <p id="background-summary" role="status"></p>
+        <div id="background-controls" hidden>
+            <label for="background-x">Положение X (м)</label><input id="background-x" type="number" step="any">
+            <label for="background-y">Положение Y (м)</label><input id="background-y" type="number" step="any">
+            <label for="background-opacity">Непрозрачность (0–1)</label><input id="background-opacity" type="number" min="0" max="1" step=".05">
+            <label><input id="background-visible" type="checkbox">Показывать подложку</label>
+            <button id="apply-background">Применить настройки подложки</button><button id="lock-background">Закрепить положение подложки</button>
+            <p>Для калибровки выберите две точки на изображении ниже или задайте их координаты в исходных пикселях. Введите известное расстояние в метрах. Калибровка меняет только масштаб подложки, сохраняя её начало и объекты.</p>
+            <img id="background-preview" alt="Изображение для выбора точек калибровки">
+            <p id="calibration-selection" role="status"></p>
+            <div class="calibration-fields">
+                <label for="calibration-ax">Первая точка X (px)</label><input id="calibration-ax" type="number" min="0" step="any" value="0">
+                <label for="calibration-ay">Первая точка Y (px)</label><input id="calibration-ay" type="number" min="0" step="any" value="0">
+                <label for="calibration-bx">Вторая точка X (px)</label><input id="calibration-bx" type="number" min="0" step="any" value="100">
+                <label for="calibration-by">Вторая точка Y (px)</label><input id="calibration-by" type="number" min="0" step="any" value="0">
+                <label for="calibration-distance">Известное расстояние (м)</label><input id="calibration-distance" type="number" min="0" step="any" value="10">
+            </div>
+            <button id="calibrate-background">Калибровать подложку</button><button id="remove-background">Убрать подложку</button>
+        </div>
+        <p id="background-error" class="field-error" role="alert"></p>
+    </details>
+    <details id="export-panel" class="input-section">
+        <summary>Экспорт плана и печать</summary>
+        <label for="export-paper">Бумага</label><select id="export-paper"><option value="A4">A4</option><option value="A3">A3</option></select>
+        <label for="export-orientation">Ориентация</label><select id="export-orientation"><option value="landscape">Альбомная</option><option value="portrait">Книжная</option></select>
+        <label for="export-scale">Масштаб 1: (пусто — вписать на страницу)</label><input id="export-scale" type="number" min="1" step="any" placeholder="Вписать автоматически">
+        <p>Экспорт включает размещённые объекты, контур с длинами сторон, видимую подложку, линии ограничений, название, легенду и масштабную линейку. Объекты в ожидании указаны только числом. Масштаб вида редактора не влияет на печать.</p>
+        <button id="preview-plan">Предпросмотр</button><button id="export-svg">Скачать SVG</button><button id="export-png">Скачать PNG (150 dpi)</button><button id="print-plan">Печатать план</button>
+        <p id="export-status" role="status"></p><p id="export-error" class="field-error" role="alert"></p>
+        <p>В диалоге печати выберите указанную бумагу, масштаб 100%, поля «нет», отключите колонтитулы. Проверьте размер по масштабной линейке. Принтер с непечатаемыми полями может потребовать подгонки; она изменит заявленный масштаб.</p>
+        <img id="export-preview" alt="Печатный план участка" hidden>
+    </details>
     <div id="rules-info" style="display: none;">
         <h2>Правила и условия размещения</h2>
         <p>Укажите профиль участка, соседство и назначение построек. Каждая проверка содержит расстояние, условия и источник. Если сведения неизвестны, приложение покажет «Недостаточно данных»; несверенный источник не даёт оценки соответствия.</p>
@@ -306,11 +342,13 @@
     <script src="js/assessment.js"></script>
     <script src="js/shapes.js"></script>
     <script src="js/plot-geometry.js"></script>
+    <script src="js/background.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
     <script src="js/variants.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/geometry.js"></script>
+    <script src="js/export.js"></script>
     <script src="js/areas.js"></script>
     <script src="js/rules.js"></script>
     <script src="js/rule-engine.js"></script>
@@ -321,5 +359,7 @@
     <script src="script.js"></script>
     <script src="js/assessment-ui.js"></script>
     <script src="js/plot-ui.js"></script>
+    <script src="js/background-ui.js"></script>
+    <script src="js/export-ui.js"></script>
 </body>
 </html>
