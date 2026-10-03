@@ -114,11 +114,13 @@ history.reset(project);
 render();
 
 function render() {
+    if(typeof assessmentProjectIdentity!=='undefined'&&assessmentProjectIdentity!==project)renderer.focusedCheck=null;
     renderHistory();
     renderVariants();
     view = renderer.render(project, selectedId, highlightedType, viewState);
     renderViewControls();
     renderObjectProperties();
+    if(typeof renderAssessmentControls==='function')renderAssessmentControls();
     if (project.plot) {
         document.getElementById('create-plot').textContent = 'Изменить размеры';
         document.getElementById('plot-summary').textContent = `Текущий участок: ${project.plot.width} × ${project.plot.length} м`;
@@ -252,7 +254,7 @@ function stopDrag(event) {
     if (!activeDrag || !ownsPointer(activeDrag,event)) return;
     const pointerId=activeDrag.pointerId;
     const object = project.objects.find(item => item.id === activeDrag.id);
-    if (object.status === 'placed' && !YardMap.touchesPlot(project.plot, object)) {
+    if (object.status === 'placed' && object.assessment?.ownership!=='neighbor' && !YardMap.touchesPlot(project.plot, object)) {
         YardMap.returnToWaiting(project, object.id);
     }
     activeDrag = null;
@@ -583,6 +585,7 @@ function handleHistoryKeyDown(event) {
 function selectObject(id) {
     if(selectedId===id && !activeDrag)return;
     cancelDrag(); cancelObjectDeletion();
+    renderer.focusedCheck=null;
     selectedId = project.objects.some(object=>object.id===id) ? id : null;
     objectPanelDirty=false; objectPanelId=null;
     document.getElementById('object-panel').open=true;
@@ -639,7 +642,8 @@ function applyObjectProperties() {
         const status=value('status');
         if(status==='placed' && (!value('x').trim() || !value('y').trim())) throw new Error('Укажите координаты X и Y.');
         YardMap.updateObject(project,object.id,{name:value('name'),width:Number(value('width')),length:Number(value('length')),
-            rotation:Number(value('rotation')),status,x:status==='waiting'?null:Number(value('x')),y:status==='waiting'?null:Number(value('y'))});
+            rotation:Number(value('rotation')),status,x:status==='waiting'?null:Number(value('x')),y:status==='waiting'?null:Number(value('y')),
+            assessment:readObjectAssessment()});
     });
 }
 function rotateSelectedObject() { editSelectedObject(object=>YardMap.updateObject(project,object.id,{rotation:(object.rotation+90)%360})); }

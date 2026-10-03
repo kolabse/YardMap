@@ -169,8 +169,8 @@
             <section id="placement-report" class="placement-report" hidden>
                 <h3>Проверка размещения</h3>
                 <p id="placement-summary" role="status" aria-live="polite"></p>
-                <ul id="placement-issues"></ul>
-                <p>Отступы — предварительные настройки. Их источники и применимость ещё не проверены. Касание допустимо только при заданном отступе 0 м; перекрытие контуров считается ошибкой.</p>
+                <label for="rule-filter">Показать проверки</label><select id="rule-filter"><option value="warnings">Отклонения и неполные проверки</option><option value="violations">Только отклонения</option><option value="all">Все результаты</option></select><ul id="placement-issues"></ul>
+                <p>Результат относится к указанному пункту документа. Неполные данные и непроверенные источники показаны отдельно. Геометрические пересечения не заменяют нормативную оценку.</p>
             </section>
             <div id="waiting-section" style="display: none;">
                 <h3>Неразмещённые объекты</h3>
@@ -180,6 +180,20 @@
         </div>
 
         <div class="left-column">
+<details class="input-section" id="assessment-panel"><summary>Сведения для проверки правил</summary><p>Для садового участка в РФ. Неизвестные условия не считаются выполненными.</p><label for="assessment-territory">Назначение территории</label><select id="assessment-territory"><option value="unknown">Неизвестно</option><option value="gardening">Территория садоводства</option><option value="other">Другое назначение</option></select>
+<label for="assessment-sewer">Централизованная канализация</label><select id="assessment-sewer"><option value="unknown">Неизвестно</option><option value="yes">Есть</option><option value="no">Нет</option></select>
+<label for="assessment-local-road">Отступ по местному регламенту со стороны УДС (м; пусто — неизвестно)</label><input id="assessment-local-road" type="number" step="any">
+<label for="assessment-lanes-north">Север: улица/проезд</label><select id="assessment-lanes-north"><option value="unknown">Неизвестно</option><option value="one">Проезд с одной полосой</option><option value="two">Улица / проезд с двумя полосами</option></select>
+<label for="assessment-lanes-east">Восток: улица/проезд</label><select id="assessment-lanes-east"><option value="unknown">Неизвестно</option><option value="one">Проезд с одной полосой</option><option value="two">Улица / проезд с двумя полосами</option></select>
+<label for="assessment-lanes-south">Юг: улица/проезд</label><select id="assessment-lanes-south"><option value="unknown">Неизвестно</option><option value="one">Проезд с одной полосой</option><option value="two">Улица / проезд с двумя полосами</option></select>
+<label for="assessment-lanes-west">Запад: улица/проезд</label><select id="assessment-lanes-west"><option value="unknown">Неизвестно</option><option value="one">Проезд с одной полосой</option><option value="two">Улица / проезд с двумя полосами</option></select>
+<button id="apply-assessment">Применить сведения участка</button><p id="assessment-error" class="field-error" role="alert"></p></details><details class="input-section"><summary>Линии пользовательских ограничений</summary><p>Граница участка, ограждение и красная линия различаются. Значение отступа здесь задаёте вы; оно не становится нормативом. Координаты в метрах от северо-западного угла участка.</p><ul id="constraint-list"></ul><label for="constraint-kind">Вид линии</label><select id="constraint-kind"><option value="redline">Красная линия</option><option value="road_edge">Край дороги</option><option value="fence">Ограждение</option><option value="restriction">Другая линия ограничения</option></select>
+<label for="constraint-name">Название ограничения</label><input id="constraint-name" maxlength="200"><label for="constraint-x1">X начала (м)</label><input id="constraint-x1" type="number" step="any">
+<label for="constraint-y1">Y начала (м)</label><input id="constraint-y1" type="number" step="any">
+<label for="constraint-x2">X конца (м)</label><input id="constraint-x2" type="number" step="any">
+<label for="constraint-y2">Y конца (м)</label><input id="constraint-y2" type="number" step="any">
+<label for="constraint-minimum">Мой минимальный отступ (м)</label><input id="constraint-minimum" type="number" step="any">
+<button id="add-constraint">Добавить линию</button><p id="constraint-error" class="field-error" role="alert"></p></details>
             <details class="input-section" id="object-panel" open>
                 <summary>Свойства объекта</summary>
                 <label for="object-select">Объект</label>
@@ -192,6 +206,19 @@
                     <label for="object-x">X от запада (м)</label><input id="object-x" type="number" step="any" aria-describedby="object-properties-error">
                     <label for="object-y">Y от севера (м)</label><input id="object-y" type="number" step="any" aria-describedby="object-properties-error">
                     <label for="object-rotation">Поворот</label><select id="object-rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+<details class="assessment-properties"><summary>Назначение и условия размещения</summary><label for="object-ownership">Участок объекта</label><select id="object-ownership"><option value="unknown">Неизвестно</option><option value="own">Мой участок</option><option value="neighbor">Соседний участок</option></select>
+<label for="object-purpose">Назначение для проверки</label><select id="object-purpose"><option value="unknown">Неизвестно</option><option value="house">Садовый / жилой дом</option><option value="outbuilding">Хозяйственная постройка</option><option value="poultry">Птица / кролики</option><option value="outdoor_toilet">Надворный туалет</option><option value="biotoilet">Биотуалет</option><option value="bath">Баня / сауна</option><option value="shower">Душ</option><option value="well">Колодец</option><option value="garage">Гараж</option><option value="carport">Навес для автомобиля</option><option value="open_parking">Открытая стоянка</option><option value="veranda">Веранда</option></select>
+<label for="object-standalone">Отдельно стоящий объект</label><select id="object-standalone"><option value="unknown">Неизвестно</option><option value="yes">Да</option><option value="no">Нет, пристроенный</option></select>
+<label for="object-measurement">Прямоугольник на плане</label><select id="object-measurement"><option value="unknown">Неизвестно</option><option value="wall">Контур цоколя / стен</option></select>
+<p>Подтвердите, от какого контура заданы размеры. Выступы вводятся по мировым сторонам плана; после поворота проверьте их заново. Пустое поле означает неизвестное значение.</p><label for="object-projection-left">Максимальный выступ, Запад (м)</label><input id="object-projection-left" type="number" step="any">
+<label for="object-projection-right">Максимальный выступ, Восток (м)</label><input id="object-projection-right" type="number" step="any">
+<label for="object-projection-top">Максимальный выступ, Север (м)</label><input id="object-projection-top" type="number" step="any">
+<label for="object-projection-bottom">Максимальный выступ, Юг (м)</label><input id="object-projection-bottom" type="number" step="any">
+<label for="object-height">Максимальная высота со стороны соседней границы (м)</label><input id="object-height" type="number" step="any">
+<label for="object-drainage">Сток с крыши</label><select id="object-drainage"><option value="unknown">Неизвестно</option><option value="own">На мой участок</option><option value="neighbor">На соседний участок</option></select>
+<label for="object-attached-to">Пристроен к объекту</label><select id="object-attached-to"></select><p>Соединение должно касаться стены. Случайное перекрытие прямоугольников остаётся ошибкой.</p><label><input id="object-windows-known" type="checkbox"> Окна жилых помещений известны (пустой список — окон нет)</label><ul id="window-list"></ul><label for="window-x">Окно: X на исходном контуре стены (м)</label><input id="window-x" type="number" step="any">
+<label for="window-y">Окно: Y на исходном контуре стены (м)</label><input id="window-y" type="number" step="any">
+<p>Координаты окна от северо-западного угла объекта до поворота. Точка должна лежать на стене.</p><button id="add-window" type="button">Добавить окно</button></details>
                     <p id="object-offsets"></p>
                     <p id="object-properties-error" class="field-error" role="alert"></p>
                     <button id="apply-object-properties">Применить свойства</button>
@@ -255,27 +282,25 @@
     </div>
     
     <div id="rules-info" style="display: none;">
-        <h2>Предварительные настройки расстояний</h2>
-        <p>Значения из прототипа используются для сравнения вариантов планировки. Они ещё не проверены по действующим документам и не подтверждают соответствие требованиям.</p>
-        <p><a href="docs/rules/placement-rules.md" target="_blank" rel="noopener">Источники и условия применения правил</a> описаны отдельно. Их внедрение в расчёт предстоит; текущие подсказки остаются предварительными.</p>
-        <ul>
-            <li>До каждой границы участка задано: для дома — 3 м, туалета и колодца — 8 м, остальных объектов — 1 м.</li>
-            <li>Заданные отступы между объектами показаны на измерительных линиях выбранной постройки.</li>
-            <li>Для парковки задан отступ 0 м до других объектов: касание допускается, перекрытие — нет.</li>
-        </ul>
+        <h2>Правила и условия размещения</h2>
+        <p>Укажите профиль участка, соседство и назначение построек. Каждая проверка содержит расстояние, условия и источник. Если сведения неизвестны, приложение покажет «Недостаточно данных»; несверенный источник не даёт оценки соответствия.</p>
+        <p><a href="docs/rules/placement-rules.md" target="_blank" rel="noopener">Реестр источников и применимости</a>. Пожарные расстояния и санитарная безопасность водоснабжения требуют дополнительной сверки. Линии пользовательских ограничений проверяются отдельно от требований документов.</p>
     </div>
 
     <script src="js/catalog.js"></script>
+    <script src="js/assessment.js"></script>
     <script src="js/model.js"></script>
     <script src="js/project-file.js"></script>
     <script src="js/variants.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/geometry.js"></script>
     <script src="js/rules.js"></script>
+    <script src="js/rule-engine.js"></script>
     <script src="js/placement.js"></script>
     <script src="js/viewport.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/history.js"></script>
     <script src="script.js"></script>
+    <script src="js/assessment-ui.js"></script>
 </body>
 </html>

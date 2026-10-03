@@ -413,3 +413,14 @@ button:focus-visible, a:focus-visible, summary:focus-visible, .building:focus-vi
     .view-controls > .view-buttons:first-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .view-buttons button { font-size: 14px; overflow-wrap: anywhere; }
 }
+
+.rule-result, .placement-issue { margin: 8px 0; overflow-wrap: anywhere; }
+.rule-result button, .placement-issue button { width: 100%; text-align: left; white-space: normal; }
+.rule-result p { margin: 6px 0; }
+.rule-result[data-status="insufficient_data"], .rule-result[data-status="source_pending"] { border-left: 4px solid #d69c26; padding-left: 8px; }
+.neighbor-building { border-style: dashed !important; }
+.focused-building { outline: 4px solid #7b1fa2; outline-offset: 3px; }
+.focused-border { outline: 3px solid #7b1fa2; }
+.restriction-line { position: absolute; border-top: 2px dashed #8e24aa; transform-origin: 0 0; pointer-events: none; z-index: 20; }
+.focused-constraint { border-top-width: 4px; }
+#constraint-list button, #window-list button { margin-left: 8px; }
