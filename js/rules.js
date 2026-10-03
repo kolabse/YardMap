@@ -1,5 +1,6 @@
 (() => {
-    // Preliminary inherited thresholds, not verified legal requirements. Sources: YM-011.
+    // Preliminary inherited thresholds, not verified legal requirements.
+    // Applicability audit: docs/rules/placement-rules.md. Replacement: YM-012.
     function requiredBorderDistance(type) {
         if (type === 'house') return 3;
         if (type === 'toilet' || type === 'well') return 8;
