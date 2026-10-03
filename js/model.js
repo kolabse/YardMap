@@ -3,6 +3,7 @@
         ? require('./catalog.js') : globalThis.YardMap;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
 
+    const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     function validateSize(width, length) {
         if (![width, length].every(value => Number.isFinite(value) && value > 0)) {
             throw new RangeError('Размеры должны быть положительными числами');
@@ -27,13 +28,14 @@
         project.plot.borders[side] = type;
     }
 
-    function addObject(project, type, width, length) {
+    function addObject(project, type, width, length, geometry) {
         if (!project.plot) throw new Error('Сначала создайте участок');
         if (!Object.hasOwn(definitions, type)) throw new RangeError('Выберите тип постройки');
         validateSize(width, length);
+        const shape=shapes.canonicalShape(type,width,length,geometry);
         const object = {
             id: `object-${project.nextObjectId++}`, type, name: definitions[type].name,
-            width, length, rotation: 0, x: null, y: null, status: 'waiting', locked: false, assessment:assessment.objectAssessment()
+            ...shape, rotation: 0, x: null, y: null, status: 'waiting', locked: false, assessment:assessment.objectAssessment()
         };
         project.objects.push(object);
         return object;
@@ -59,6 +61,10 @@
         if (!object) throw new RangeError('Объект не найден');
         const next = { ...object, ...changes };
         validateSize(next.width,next.length);
+        const geometry=changes.geometry!==undefined?changes.geometry:
+            object.geometry?.kind==='circle'&&changes.width!==undefined?{kind:'circle',radius:changes.width/2}:object.geometry;
+        Object.assign(next,shapes.canonicalShape(object.type,next.width,next.length,geometry));
+        validateSize(next.width,next.length);
         if (typeof next.name !== 'string' || !next.name.trim() || next.name.length > 200) throw new RangeError('Название: от 1 до 200 символов');
         if (![0,90,180,270].includes(next.rotation)) throw new RangeError('Неверный поворот');
         if (!['waiting','placed'].includes(next.status)) throw new RangeError('Неверное состояние размещения');
@@ -70,12 +76,13 @@
         assessment.validateConnections(project.objects.map(o=>o.id===id?next:o));
         Object.assign(object,{ name:next.name,width:next.width,length:next.length,rotation:next.rotation,
             status:next.status,x:next.status==='waiting'?null:next.x,y:next.status==='waiting'?null:next.y,locked:next.locked,assessment:next.assessment });
+        if(next.geometry)object.geometry=next.geometry;
         return object;
     }
     function copyObject(project,id) {
         const source = project.objects.find(item=>item.id===id);
         if (!source) throw new RangeError('Объект не найден');
-        const copy = addObject(project,source.type,source.width,source.length);
+        const copy = addObject(project,source.type,source.width,source.length,source.geometry);
         copy.name = source.name.slice(0,190)+' (копия)'; copy.rotation=source.rotation;
         copy.assessment=assessment.objectAssessment(source.assessment);copy.assessment.attachedTo=null;
         return copy;

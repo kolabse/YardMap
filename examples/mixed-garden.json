@@ -1,0 +1,328 @@
+{
+  "version": 1,
+  "name": "Сад, постройки и коммуникации",
+  "settings": {
+    "units": "m"
+  },
+  "assessment": {
+    "territory": "gardening",
+    "sewer": "unknown",
+    "localRoadMinimum": null,
+    "lanes": {
+      "north": "unknown",
+      "east": "unknown",
+      "south": "unknown",
+      "west": "unknown"
+    },
+    "constraints": []
+  },
+  "plot": {
+    "width": 20,
+    "length": 35,
+    "borders": {
+      "north": "",
+      "east": "",
+      "south": "",
+      "west": "neighbor"
+    }
+  },
+  "objects": [
+    {
+      "id": "object-1",
+      "type": "house",
+      "name": "Дом",
+      "width": 5,
+      "length": 6,
+      "rotation": 0,
+      "x": 4,
+      "y": 20,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "house",
+        "standalone": "unknown",
+        "measurement": "wall",
+        "projections": {
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "bottom": 0
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-2",
+      "type": "bed",
+      "name": "Грядка",
+      "width": 4,
+      "length": 2,
+      "rotation": 0,
+      "x": 4,
+      "y": 10,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "unknown",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-3",
+      "type": "greenhouse",
+      "name": "Теплица",
+      "width": 3,
+      "length": 6,
+      "rotation": 0,
+      "x": 13,
+      "y": 15,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "unknown",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-4",
+      "type": "tree",
+      "name": "Дерево / кустарник",
+      "width": 4,
+      "length": 4,
+      "geometry": {
+        "kind": "circle",
+        "radius": 2
+      },
+      "rotation": 0,
+      "x": 8,
+      "y": 6,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "tree",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null,
+        "treeClass": "medium"
+      }
+    },
+    {
+      "id": "object-5",
+      "type": "path",
+      "name": "Дорожка",
+      "width": 2,
+      "length": 10,
+      "rotation": 0,
+      "x": 12,
+      "y": 2,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "unknown",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-6",
+      "type": "septic",
+      "name": "Септик / система стоков",
+      "width": 2,
+      "length": 2,
+      "rotation": 0,
+      "x": 17,
+      "y": 28,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "septic",
+        "standalone": "unknown",
+        "measurement": "wall",
+        "projections": {
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "bottom": 0
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null,
+        "septicKind": "septic"
+      }
+    },
+    {
+      "id": "object-7",
+      "type": "gate",
+      "name": "Ворота",
+      "width": 4,
+      "length": 0.1,
+      "geometry": {
+        "kind": "line",
+        "dx": 4,
+        "dy": 0
+      },
+      "rotation": 0,
+      "x": 0,
+      "y": 18,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "unknown",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-8",
+      "type": "communication",
+      "name": "Коммуникация",
+      "width": 10,
+      "length": 4,
+      "geometry": {
+        "kind": "line",
+        "dx": -10,
+        "dy": 4
+      },
+      "rotation": 0,
+      "x": 16,
+      "y": 10,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "unknown",
+        "standalone": "unknown",
+        "measurement": "unknown",
+        "projections": {
+          "left": null,
+          "right": null,
+          "top": null,
+          "bottom": null
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-9",
+      "type": "compost",
+      "name": "Компост",
+      "width": 1,
+      "length": 1,
+      "rotation": 0,
+      "x": 2,
+      "y": 15,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "compost",
+        "standalone": "unknown",
+        "measurement": "wall",
+        "projections": {
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "bottom": 0
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    },
+    {
+      "id": "object-10",
+      "type": "well",
+      "name": "Колодец",
+      "width": 2,
+      "length": 2,
+      "rotation": 0,
+      "x": 10,
+      "y": 10,
+      "status": "placed",
+      "locked": false,
+      "assessment": {
+        "ownership": "own",
+        "purpose": "well",
+        "standalone": "unknown",
+        "measurement": "wall",
+        "projections": {
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "bottom": 0
+        },
+        "height": null,
+        "drainage": "unknown",
+        "attachedTo": null,
+        "windows": null
+      }
+    }
+  ],
+  "nextObjectId": 11
+}

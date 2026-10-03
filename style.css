@@ -424,3 +424,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible, .building:focus-vi
 .restriction-line { position: absolute; border-top: 2px dashed #8e24aa; transform-origin: 0 0; pointer-events: none; z-index: 20; }
 .focused-constraint { border-top-width: 4px; }
 #constraint-list button, #window-list button { margin-left: 8px; }
+
+.circle-object { border-radius: 50%; overflow: visible; }
+.tree-trunk { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; background: #5d4037; border: 1px solid white; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+.line-object { background: transparent !important; border: 0 !important; overflow: visible; }
+.line-object .building-name { position: absolute; top: 8px; white-space: nowrap; }
+.object-line { position: absolute; height: 4px; transform-origin: 0 0; pointer-events: none; }
+.overlay-object { border-style: dashed; }
+.legend-category { grid-column: 1 / -1; margin: 10px 0 4px; }
+
+[hidden] { display: none !important; }

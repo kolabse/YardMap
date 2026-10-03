@@ -1,6 +1,7 @@
 (() => {
     const g=typeof module!=='undefined'&&module.exports?require('./geometry.js'):globalThis.YardMap;
     const {ruleDefinitions}=typeof module!=='undefined'&&module.exports?require('./rules.js'):globalThis.YardMap;
+    const {definitions}=typeof module!=='undefined'&&module.exports?require('./catalog.js'):globalThis.YardMap;
     const meta=typeof module!=='undefined'&&module.exports?require('./assessment.js'):globalThis.YardMap;
     const sideKey={left:'west',right:'east',top:'north',bottom:'south'};
     function measurementRect(o,boundary=false) {
@@ -41,12 +42,38 @@
         for(const o of placed) {
             const a=am.get(o.id);
             if(a.ownership!=='neighbor') {
-                const d=g.borderDistances(project.plot,o),sides=Object.keys(d).filter(s=>d[s]<-g.geometryEpsilon);
+                const d=g.borderDistances(project.plot,o),sides=o.type==='tree'?['left','right','top','bottom'].filter(s=>({left:o.x,right:project.plot.width-o.x,top:o.y,bottom:project.plot.length-o.y})[s]<-g.geometryEpsilon):Object.keys(d).filter(s=>d[s]<-g.geometryEpsilon);
                 if(sides.length)issue({kind:'outside',objectIds:[o.id],sides});
             }
             if(!profile)check('PROFILE',[o.id],null,null,context.territory==='unknown'?['Назначение территории']:[],
                 {reason:context.territory==='other'?'Профиль садоводства не применяется.':''});
-            else if(a.ownership!=='neighbor') {
+            else if(a.ownership!=='neighbor'&&['tree','septic','compost'].includes(o.type)) {
+                for(const [s,k] of Object.entries(sideKey)) {
+                    const border=project.plot.borders[k];
+                    const missing=a.ownership==='unknown'?['Принадлежность объекта']:[];
+                    if(!border)missing.push('Соседство стороны');
+                    if(['forest','ditch'].includes(border))check('Z01',[o.id],null,null,[],{side:s});
+                    if(o.type==='tree'&&(border==='neighbor'||!border)) {
+                        const required={high:4,medium:2,low:1}[a.treeClass];
+                        if(!required)missing.push('Категория взрослого дерева / кустарника');
+                        check('B03',[o.id],{left:o.x,right:project.plot.width-o.x,top:o.y,bottom:project.plot.length-o.y}[s],required??null,missing,{side:s,start:{x:o.x,y:o.y},end:{left:{x:0,y:o.y},right:{x:project.plot.width,y:o.y},top:{x:o.x,y:0},bottom:{x:o.x,y:project.plot.length}}[s],reason:'Измеряется от ствола, не от края кроны. Категорию взрослого растения подтверждает пользователь.'});
+                    }
+                    if(o.type==='compost'&&(border==='neighbor'||!border)) {
+                        if(a.purpose!=='compost')missing.push('Назначение компостного сооружения');
+                        check('S01',[o.id],g.borderDistances(project.plot,o)[s],2,missing,{side:s});
+                    }
+                    if(o.type==='compost'&&border==='road')check('S01',[o.id],null,2,[...missing,'Подтверждённое ограждение улицы / проезда'],{side:s});
+                    if(o.type==='septic') {
+                        const kind=a.septicKind??'unknown',r=measurementRect(o);
+                        if(kind==='unknown')missing.push('Тип и состав стоков');
+                        if(a.purpose!=='septic')missing.push('Назначение системы стоков');
+                        if(!r)missing.push('Контур сооружения');
+                        if(kind==='septic'||border==='neighbor'||!border)check('S02',[o.id],r?g.borderDistances(project.plot,o)[s]:null,kind==='septic'?1:2,kind==='septic'?missing.filter(v=>v!=='Соседство стороны'):missing,{side:s,reason:'Проверяется только указанное граничное условие; санитарные требования до воды и домов не сверены.'});
+                        if(kind==='pit'&&border==='road')check('S02',[o.id],null,2,[...missing,'Подтверждённое ограждение улицы / проезда'],{side:s});
+                    }
+                }
+            }
+            else if(a.ownership!=='neighbor'&&definitions[o.type].solid) {
                 const r=measurementRect(o,true),known=a.purpose!=='unknown',house=a.purpose==='house';
                 for(const [s,k] of Object.entries(sideKey)) {
                     const border=project.plot.borders[k],actual=r?(s==='right'?project.plot.width-r.right:s==='bottom'?project.plot.length-r.bottom:r[s]):null;
@@ -73,22 +100,23 @@
                     } else if(['forest','ditch'].includes(border))check('Z01',[o.id],null,null,[],{side:s});
                 }
             }
-            if(profile&&['well','outdoor_toilet','biotoilet'].includes(a.purpose))check('W01',[o.id]);
+            if(profile&&(['well','outdoor_toilet','biotoilet','septic'].includes(a.purpose)||o.type==='septic'))check('W01',[o.id]);
             for(const line of context.constraints)if(a.ownership!=='neighbor') {
-                const m=g.rectangleSegmentMeasurement(g.objectRect(o),line);
+                const proxy={geometry:{kind:'line',dx:line.x2-line.x1,dy:line.y2-line.y1},x:line.x1,y:line.y1,rotation:0};
+                const m=g.objectMeasurement(o,proxy);
                 check('U01',[o.id],m.distance,line.minimum,[],{lineId:line.id,title:line.name,reason:'Порог задан пользователем.',start:m.start,end:m.end});
             }
         }
         for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++) {
             const a=placed[i],b=placed[j],aa=am.get(a.id),ba=am.get(b.id),ids=[a.id,b.id];
-            const m=g.rectangleMeasurement(g.objectRect(a),g.objectRect(b));
-            result.pairs.push({...m,objectIds:ids,required:null});
+            const m=g.objectMeasurement(a,b);
+            result.pairs.push({...m,relation:m.relation==='overlap'&&!(definitions[a.type].solid&&definitions[b.type].solid)?'allowed-overlay':m.relation,objectIds:ids,required:null});
             if(aa.ownership==='neighbor'&&ba.ownership==='neighbor')continue;
-            if(m.relation==='overlap')issue({kind:'overlap',objectIds:ids});
+            if(m.relation==='overlap'&&definitions[a.type].solid&&definitions[b.type].solid)issue({kind:'overlap',objectIds:ids});
             if(m.relation==='touching')result.contacts++;
             if(aa.attachedTo===b.id||ba.attachedTo===a.id)check('A01',ids,m.relation==='touching'?1:0,1,[],
                 {reason:'Объявленная пристройка должна касаться стены; перекрытие контуров остаётся ошибкой.',metric:'condition'});
-            if(!profile)continue;
+            if(!profile||a.geometry||b.geometry||!definitions[a.type].solid||!definitions[b.type].solid)continue;
             const roles=[[a,b,aa,ba],[b,a,ba,aa]];
             function pair(ruleId,missing=[],extra={}) {
                 const ar=measurementRect(a),br=measurementRect(b);
@@ -101,7 +129,7 @@
             const hp=roles.find(([, ,h,t])=>h.purpose==='house'&&['bath','shower','outdoor_toilet'].includes(t.purpose));
             if(hp)pair('P01',hp[3].standalone==='unknown'?['Отдельно стоящее сооружение']:[],
                 hp[3].standalone==='no'?{status:'not_applicable',reason:'Сооружение пристроено; правило для отдельно стоящих объектов не применено.'}:{});
-            if(roles.some(([, ,w,t])=>w.purpose==='well'&&t.purpose==='outdoor_toilet'))pair('P02');
+            if(roles.some(([, ,w,t])=>w.purpose==='well'&&['outdoor_toilet','compost'].includes(t.purpose)))pair('P02');
             for(const [h,t,ha,ta] of roles) {
                 if(ha.purpose==='house'&&ta.purpose==='outdoor_toilet'&&
                     !(ha.ownership===ta.ownership&&ha.ownership!=='unknown')) {

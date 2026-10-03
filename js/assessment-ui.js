@@ -1,7 +1,7 @@
 // These controls edit the same model/history/storage as geometry controls.
 function assessmentField(id) { return document.getElementById(id); }
 function optionalAssessmentNumber(id) { const v=assessmentField(id).value;return v.trim()===''?null:Number(v); }
-const assessmentObjectFields=['ownership','purpose','standalone','measurement','height','drainage','attached-to',
+const assessmentObjectFields=['tree-class','septic-kind','ownership','purpose','standalone','measurement','height','drainage','attached-to',
     'projection-left','projection-right','projection-top','projection-bottom','windows-known'];
 let assessmentPanelDirty=false,assessmentProjectIdentity=null;
 for(const field of assessmentObjectFields)for(const event of ['input','change'])assessmentField('object-'+field).addEventListener(event,()=>objectPanelDirty=true);
@@ -19,6 +19,8 @@ assessmentField('rule-filter').addEventListener('change',render);
 function readObjectAssessment() {
     const a=YardMap.objectAssessment(selectedObject()?.assessment);
     for(const key of ['ownership','purpose','standalone','measurement','drainage'])a[key]=assessmentField('object-'+key).value;
+    if(selectedObject()?.type==='tree')a.treeClass=assessmentField('object-tree-class').value;
+    if(selectedObject()?.type==='septic')a.septicKind=assessmentField('object-septic-kind').value;
     a.height=optionalAssessmentNumber('object-height');
     a.projections=Object.fromEntries(['left','right','top','bottom'].map(s=>[s,optionalAssessmentNumber('object-projection-'+s)]));
     a.attachedTo=assessmentField('object-attached-to').value||null;
@@ -67,14 +69,19 @@ function renderAssessmentControls() {
         });li.appendChild(button);list.appendChild(li);
     }
     const o=selectedObject();if(!o)return;
+    for(const [key,type] of [['tree-class','tree'],['septic-kind','septic']]){assessmentField('object-'+key).hidden=o.type!==type;assessmentField('object-'+key+'-label').hidden=o.type!==type;}
     if(!objectPanelDirty) {
         const a=o.assessment;
+        const purpose=assessmentField('object-purpose'),allowed=YardMap.purposesForType(o.type);
+        const labels={unknown:'Неизвестно',house:'Садовый / жилой дом',outbuilding:'Хозяйственная постройка',poultry:'Птица / кролики',outdoor_toilet:'Надворный туалет',biotoilet:'Биотуалет',bath:'Баня / сауна',shower:'Душ',well:'Колодец',garage:'Гараж',carport:'Навес для автомобиля',open_parking:'Открытая стоянка',veranda:'Веранда',tree:'Дерево / кустарник',septic:'Система стоков',compost:'Компост',zone:'Зона / дорожка',infrastructure:'Линия / ворота'};
+        purpose.replaceChildren();for(const value of allowed){const option=document.createElement('option');option.value=value;option.textContent=labels[value];purpose.appendChild(option);}
+        assessmentField('object-tree-class').value=a.treeClass??'unknown';assessmentField('object-septic-kind').value=a.septicKind??'unknown';
         for(const k of ['ownership','purpose','standalone','measurement','drainage'])assessmentField('object-'+k).value=a[k];
         assessmentField('object-height').value=a.height===null?'':String(a.height);
         for(const s of ['left','right','top','bottom'])assessmentField('object-projection-'+s).value=a.projections[s]===null?'':String(a.projections[s]);
         const select=assessmentField('object-attached-to');select.replaceChildren();
         const none=document.createElement('option');none.value='';none.textContent='Связь не задана';select.appendChild(none);
-        for(const other of project.objects)if(other.id!==o.id){const option=document.createElement('option');option.value=other.id;option.textContent=other.name;select.appendChild(option);}
+        for(const other of project.objects)if(other.id!==o.id&&!other.geometry){const option=document.createElement('option');option.value=other.id;option.textContent=other.name;select.appendChild(option);}
         select.value=a.attachedTo||'';
         assessmentField('object-windows-known').checked=a.windows!==null;
     }
