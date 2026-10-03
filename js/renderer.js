@@ -25,6 +25,7 @@
             this.renderPlacementReport(project, analysis);
             this.plot.hidden = !project.plot;
             if (!project.plot) {
+                this.plot.replaceChildren();
                 this.elements.forEach(element => element.remove()); this.elements.clear();
                 this.waitingArea.replaceChildren();
                 document.querySelectorAll('.distance-line').forEach(element => element.remove());
@@ -44,6 +45,7 @@
                 width: project.plot.width * view.scale + 'px', height: project.plot.length * view.scale + 'px',
                 left: view.left + 'px', top: view.top + 'px'
             });
+            this.renderBackground(project,view);
             this.renderBorders(project.plot, view);
             this.renderConstraints(project, view);
             this.waitingArea.replaceChildren();
@@ -161,6 +163,13 @@
                 border.textContent = api.borderLabels[type];
                 this.container.appendChild(border);
             }
+        }
+        renderBackground(project,view) {
+            this.plot.replaceChildren();
+            const background=project.background;if(!background?.visible||!background.dataUrl)return;
+            const image=document.createElement('img');image.className='plot-background';image.alt='';image.src=background.dataUrl;
+            Object.assign(image.style,{left:background.x*view.scale+'px',top:background.y*view.scale+'px',width:background.pixelWidth*background.metresPerPixel*view.scale+'px',height:background.pixelHeight*background.metresPerPixel*view.scale+'px',opacity:String(background.opacity)});
+            this.plot.appendChild(image);
         }
         renderConstraints(project,view) {
             document.querySelectorAll('.restriction-line').forEach(el=>el.remove());

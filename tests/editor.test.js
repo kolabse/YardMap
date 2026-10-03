@@ -162,6 +162,26 @@ function savedProject(text) {
     const data=JSON.parse(text);
     return data.workspaceVersion ? data.variants.find(item=>item.id===data.activeId).project : data;
 }
+test('background controls preserve object geometry, undo calibration and export a standalone print plan',async()=>{
+    const storage=memoryStorage(),app=editor({storage});app.add();app.place(3,4);
+    const objects=JSON.stringify(app.state().objects);
+    assert.equal(app.run('typeof applyBackgroundSettings'),'function');
+    app.run('YardMap.setBackground(project,{name:"Фото",dataUrl:null,pixelWidth:100,pixelHeight:80,metresPerPixel:.1,x:0,y:0,opacity:.5,locked:false,visible:false});render();saveCommittedProject()');
+    app.get('background-x').value='2';app.get('background-y').value='3';app.get('background-opacity').value='.3';app.get('background-visible').checked=false;
+    app.run('applyBackgroundSettings()');assert.equal(app.state().background.x,2);
+    for(const [key,value] of Object.entries({ax:'0',ay:'0',bx:'50',by:'0',distance:'10'}))app.get('calibration-'+key).value=value;
+    app.run('applyBackgroundCalibration()');assert.equal(app.state().background.metresPerPixel,.2);assert.equal(JSON.stringify(app.state().objects),objects);
+    app.run('undoAction()');assert.equal(app.state().background.metresPerPixel,.1);
+    app.get('export-paper').value='A4';app.get('export-orientation').value='landscape';app.get('export-scale').value='';
+    await app.run('downloadPlanSvg()');assert.equal(app.downloads.at(-1).filename,'yardmap-plan.svg');
+    assert.match(await app.downloads.at(-1).blob.text(),/Масштабная линейка/);
+    const reloaded=editor({storage,bootOnly:true});assert.equal(reloaded.state().background.x,2);assert.equal(reloaded.state().background.dataUrl,null);
+});
+test('print preview is invalidated when the plan changes',()=>{
+    const app=editor();assert.equal(app.run('typeof planExportKey'),'function');
+    app.run('planPreviewState=planExportKey()');app.get('export-preview').hidden=false;
+    app.add();assert.equal(app.get('export-preview').hidden,true);
+});
 test('moving a polygon vertex updates area and checks; selecting a check highlights its edge',()=>{
     const app=editor();app.run('plotDraftRows[0].fields.minimum.value="4";applyPlotContour()');app.add();app.place(3,3);
     app.run('focusPlacementCheck(YardMap.analyzePlacement(project).checks.find(c=>c.ruleId==="U02"&&c.edgeId==="vertex-1"))');

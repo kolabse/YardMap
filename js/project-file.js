@@ -5,7 +5,12 @@
     const shapes=typeof module!=='undefined'&&module.exports?require('./shapes.js'):globalThis.YardMap;
     const maxProjectFileBytes = 2 * 1024 * 1024;
     const assessment = typeof module !== 'undefined' && module.exports ? require('./assessment.js') : globalThis.YardMap;
+    const backgrounds = typeof module !== 'undefined' && module.exports ? require('./background.js') : globalThis.YardMap;
     function fail(message) { throw new Error(message); }
+    function checkFileSize(text) {
+        let bytes=0;
+        for(const c of text){const n=c.codePointAt(0);bytes+=n<128?1:n<2048?2:n<65536?3:4;if(bytes>maxProjectFileBytes)fail('Файл проекта слишком большой (максимум 2 МиБ).');}
+    }
     function record(value, label) {
         if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label}: ожидается объект.`);
     }
@@ -72,17 +77,19 @@
         if (!Number.isSafeInteger(data.nextObjectId) || data.nextObjectId <= largestId || data.nextObjectId < 1
             || data.nextObjectId >= Number.MAX_SAFE_INTEGER) fail('Неверный счётчик ID объектов.');
         assessment.validateConnections(objects);
-        return { version: data.version, name: projectName, settings: { units: 'm' }, assessment:assessment.projectAssessment(data.assessment),plot, objects, nextObjectId: data.nextObjectId };
+        const background=backgrounds.normalizeBackground(data.background);
+        if(background&&(!plot||data.version!==2))fail('Подложка требует участка и версии проекта 2.');
+        return { version: data.version, name: projectName, settings: { units: 'm' }, assessment:assessment.projectAssessment(data.assessment),plot, objects, nextObjectId: data.nextObjectId,...(Object.hasOwn(data,'background')?{background}:{}) };
     }
     function parseProject(text) {
         if (typeof text !== 'string') fail('Ожидается текст файла JSON.');
-        if (text.length > maxProjectFileBytes) fail('Файл проекта слишком большой (максимум 2 МиБ).');
+        checkFileSize(text);
         let data;
         try { data = JSON.parse(text.replace(/^\uFEFF/,'')); }
         catch { fail('Не удалось прочитать JSON. Проверьте содержимое файла.'); }
         return validateProject(data);
     }
-    function serializeProject(project) { return JSON.stringify(validateProject(project),null,2); }
+    function serializeProject(project) { const text=JSON.stringify(validateProject(project),null,2);checkFileSize(text);return text; }
     const api = { parseProject, serializeProject, maxProjectFileBytes };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(globalThis.YardMap ||= {},api);

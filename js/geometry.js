@@ -124,5 +124,6 @@
     }
     const api = { plotArea:plots.plotArea,plotEdges:plots.plotEdges,boundaryMeasurements:plots.boundaryMeasurements,areaSummary,objectMeasurement, objectSize, objectRect, borderDistances, rectangleDistance, rectangleMeasurement, rectangleSegmentMeasurement,geometryEpsilon, touchesPlot, isInsidePlot, createView, toScreen, toMetres };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
+    if (typeof module !== 'undefined' && module.exports) api.buildPlanSvg=(...args)=>require('./export.js').buildPlanSvg(...args);
     else Object.assign(globalThis.YardMap ||= {}, api);
 })();
