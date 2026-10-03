@@ -7,134 +7,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>ПланДач</h1>
-    <h2>Планирование участка в СНТ</h2>
-    <nav class="quick-nav" aria-label="Разделы редактора">
-        <a href="#planner">План</a><a href="#object-panel">Свойства</a>
-        <a href="#catalog-panel">Добавить объект</a><a href="#file-panel">Сохранение</a>
-    </nav>
-    <details class="input-section" id="variants-panel">
-        <summary>Варианты планировки</summary>
-        <label for="variant-select">Вариант планировки</label>
-        <select id="variant-select"></select>
-        <button id="create-variant">Новый вариант</button>
-        <button id="copy-variant">Копировать вариант</button>
-        <button id="delete-variant" class="secondary-button">Удалить вариант</button>
-        <p id="active-variant-summary" role="status"></p>
-        <p id="variant-status" role="status"></p>
-        <div id="variant-delete-confirmation" class="confirmation-panel" hidden>
-            <p id="variant-delete-summary"></p>
-            <p>Удаление нельзя отменить. Перед удалением можно скачать JSON этого варианта кнопкой ниже.</p>
-            <button id="confirm-delete-variant">Удалить выбранный вариант</button>
-            <button id="cancel-delete-variant" class="secondary-button">Отмена</button>
-        </div>
-    </details>
-    <details class="input-section" id="file-panel">
-        <summary>Сохранение и открытие JSON</summary>
-        <label for="project-name">Название варианта</label>
-        <input id="project-name" type="text" maxlength="200" value="Мой участок">
-        <button id="export-project">Скачать JSON</button>
-        <label for="import-project">Открыть JSON</label>
-        <input id="import-project" type="file" accept=".json,application/json">
-        <p id="project-file-status" role="status" aria-live="polite"></p>
-        <button id="retry-autosave" class="secondary-button" hidden>Повторить сохранение</button>
-        <button id="replace-stored-project" class="secondary-button" hidden>Заменить сохранённую запись</button>
-        <div id="storage-replacement-confirmation" class="confirmation-panel" hidden>
-            <p>Сохранённую запись не удалось открыть. Заменить её текущим планом? Прежняя запись будет перезаписана. Текущий план можно предварительно скачать в JSON.</p>
-            <button id="confirm-storage-replacement">Сохранить текущий план вместо прежней записи</button>
-            <button id="cancel-storage-replacement" class="secondary-button">Отмена</button>
-        </div>
-        <div id="import-confirmation" class="confirmation-panel" hidden>
-            <p id="import-summary"></p>
-            <p>Открытие заменит активный вариант. Другие варианты сохранятся. Перед заменой можно скачать JSON активного варианта.</p>
-            <button id="confirm-import">Заменить текущий план</button>
-            <button id="cancel-import" class="secondary-button">Отмена</button>
-        </div>
-    </details>
-    <p id="autosave-status" role="status" aria-live="polite"></p>
-
-    <details class="input-section" id="plot-settings" open>
-        <summary>Участок и границы</summary>
-        <div class="plot-creation-row">
-            <!-- Блок создания участка -->
-            <div class="plot-size-controls">
-                <h3>Размер участка</h3>
-                <div>
-                    <label for="plot-width">Ширина (м):</label>
-                    <input type="number" id="plot-width" min="0" step="any" value="20" aria-describedby="plot-width-error">
-                    <p id="plot-width-error" class="field-error" role="alert"></p>
-                    
-                    <label for="plot-length">Длина (м):</label>
-                    <input type="number" id="plot-length" min="0" step="any" value="35" aria-describedby="plot-length-error">
-                    <p id="plot-length-error" class="field-error" role="alert"></p>
-                    
-                    <button id="create-plot">Создать участок</button>
-                    <p id="plot-summary" role="status"></p>
-                    <button id="new-project" class="secondary-button" hidden>Новый проект</button>
-                    <div id="new-project-confirmation" class="confirmation-panel" hidden>
-                        <p>Новый проект очистит активный вариант; остальные варианты сохранятся. Перед заменой можно скачать его JSON. Размеры нового участка задайте в полях выше.</p>
-                        <button id="confirm-new-project">Создать новый проект</button>
-                        <button id="cancel-new-project" class="secondary-button">Продолжить текущий</button>
-                    </div>
-                </div>
-            </div>
-    
-            <!-- Блок выбора границ (изначально скрыт) -->
-            <div id="plot-controls" class="plot-borders-controls">
-                <h3>Границы участка</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <h4>Северная сторона</h4>
-                        <select id="north-side">
-                            <option value="" selected disabled>Выбрать</option>
-                            <option value="road">Дорога</option>
-                            <option value="forest">Лес</option>
-                            <option value="neighbor">Соседний участок</option>
-                            <option value="ditch">Канава</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <h4>Западная сторона</h4>
-                        <select id="west-side">
-                            <option value="" selected disabled>Выбрать</option>
-                            <option value="road">Дорога</option>
-                            <option value="forest">Лес</option>
-                            <option value="neighbor">Соседний участок</option>
-                            <option value="ditch">Канава</option>
-                        </select>
-                    </div>
-                
-                    <div class="control-group">
-                        <h4>Южная сторона</h4>
-                        <select id="south-side">
-                            <option value="" selected disabled>Выбрать</option>
-                            <option value="road">Дорога</option>
-                            <option value="forest">Лес</option>
-                            <option value="neighbor">Соседний участок</option>
-                            <option value="ditch">Канава</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <h4>Восточная сторона</h4>
-                        <select id="east-side">
-                            <option value="" selected disabled>Выбрать</option>
-                            <option value="road">Дорога</option>
-                            <option value="forest">Лес</option>
-                            <option value="neighbor">Соседний участок</option>
-                            <option value="ditch">Канава</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </details>
-    
+    <h1 class="app-title">ПланДач <span title="Планирование участка в СНТ">— Планирование участка в СНТ</span></h1>
+    <div class="editor-surface">
     <div class="main-container">
         <div class="center-column" id="planner">
-            <details class="input-section" open><summary>Площади и покрытие участка</summary>
-                <p id="area-summary" role="status"></p><ul id="area-categories"></ul>
-                <details><summary>Как считается площадь</summary><p>Покрытие — объединение прямоугольных объектов и проекций крон внутри участка. Пересечения считаются один раз. Линии коммуникаций и ворот занимают 0 м²; неразмещённые и соседские объекты исключены. Площади категорий могут пересекаться: их сумма не равна общему покрытию. Это геометрический показатель, не нормативная доля застройки. Для кругов используется численное интегрирование; значения показаны приблизительно до 0.01 м².</p></details>
-            </details>
             <section class="view-controls" aria-label="Управление видом">
                 <div class="view-buttons">
                     <button id="zoom-in" aria-label="Увеличить вид">+</button>
@@ -142,23 +18,6 @@
                     <button id="fit-view">Показать весь участок</button>
                     <button id="pan-mode" aria-pressed="false">Перемещать вид</button>
                 </div>
-                <div class="view-buttons" aria-label="Сдвиг вида">
-                    <button id="pan-left" aria-label="Сдвинуть вид влево">←</button>
-                    <button id="pan-up" aria-label="Сдвинуть вид вверх">↑</button>
-                    <button id="pan-down" aria-label="Сдвинуть вид вниз">↓</button>
-                    <button id="pan-right" aria-label="Сдвинуть вид вправо">→</button>
-                </div>
-                <details><summary>Сетка и подсказки управления</summary>
-                <label><input id="grid-visible" type="checkbox" checked> Показывать сетку</label>
-                <label><input id="snap-enabled" type="checkbox"> Привязка при переносе</label>
-                <label for="grid-step">Шаг сетки и привязки (м)</label>
-                <input id="grid-step" type="number" min="0.01" max="1000" step="any" value="1" aria-describedby="view-error">
-                <button id="apply-view-settings">Применить настройки сетки</button>
-                <p id="view-error" class="field-error" role="alert"></p>
-                <p>Потяните объект мышью или пальцем. В режиме «Перемещать вид» потяните план. Escape отменяет незавершённое движение. Координаты в свойствах задаются точно, без привязки.</p>
-                </details>
-                <p id="view-status" role="status"></p>
-                <p id="interaction-status" role="status" aria-live="polite"></p>
             </section>
             <div class="plot-container" role="region" aria-label="План участка">
                 <div id="plot"></div>
@@ -174,6 +33,12 @@
                     </div>
                 </section>
             </div>
+            <p id="view-status" role="status"></p>
+            <p id="interaction-status" role="status" aria-live="polite"></p>
+            <details class="input-section" open><summary>Площади и покрытие участка</summary>
+                <p id="area-summary" role="status"></p><ul id="area-categories"></ul>
+                <details><summary>Как считается площадь</summary><p>Покрытие — объединение прямоугольных объектов и проекций крон внутри участка. Пересечения считаются один раз. Линии коммуникаций и ворот занимают 0 м²; неразмещённые и соседские объекты исключены. Площади категорий могут пересекаться: их сумма не равна общему покрытию. Это геометрический показатель, не нормативная доля застройки. Для кругов используется численное интегрирование; значения показаны приблизительно до 0.01 м².</p></details>
+            </details>
             <p id="outside-warning" class="outside-warning" role="status" aria-live="polite"></p>
             <section id="placement-report" class="placement-report" hidden>
                 <h3>Проверка размещения</h3>
@@ -189,6 +54,140 @@
         </div>
 
         <div class="left-column">
+            <details class="input-section" id="variants-panel">
+                <summary>Варианты планировки</summary>
+                <label for="variant-select">Вариант планировки</label>
+                <select id="variant-select"></select>
+                <button id="create-variant">Новый вариант</button>
+                <button id="copy-variant">Копировать вариант</button>
+                <button id="delete-variant" class="secondary-button">Удалить вариант</button>
+                <p id="active-variant-summary" role="status"></p>
+                <p id="variant-status" role="status"></p>
+                <div id="variant-delete-confirmation" class="confirmation-panel" hidden>
+                    <p id="variant-delete-summary"></p>
+                    <p>Удаление нельзя отменить. Перед удалением можно скачать JSON этого варианта кнопкой ниже.</p>
+                    <button id="confirm-delete-variant">Удалить выбранный вариант</button>
+                    <button id="cancel-delete-variant" class="secondary-button">Отмена</button>
+                </div>
+            </details>
+            <details class="input-section" id="file-panel">
+                <summary>Сохранение и открытие JSON</summary>
+                <label for="project-name">Название варианта</label>
+                <input id="project-name" type="text" maxlength="200" value="Мой участок">
+                <button id="export-project">Скачать JSON</button>
+                <label for="import-project">Открыть JSON</label>
+                <input id="import-project" type="file" accept=".json,application/json">
+                <p id="project-file-status" role="status" aria-live="polite"></p>
+                <button id="retry-autosave" class="secondary-button" hidden>Повторить сохранение</button>
+                <button id="replace-stored-project" class="secondary-button" hidden>Заменить сохранённую запись</button>
+                <div id="storage-replacement-confirmation" class="confirmation-panel" hidden>
+                    <p>Сохранённую запись не удалось открыть. Заменить её текущим планом? Прежняя запись будет перезаписана. Текущий план можно предварительно скачать в JSON.</p>
+                    <button id="confirm-storage-replacement">Сохранить текущий план вместо прежней записи</button>
+                    <button id="cancel-storage-replacement" class="secondary-button">Отмена</button>
+                </div>
+                <div id="import-confirmation" class="confirmation-panel" hidden>
+                    <p id="import-summary"></p>
+                    <p>Открытие заменит активный вариант. Другие варианты сохранятся. Перед заменой можно скачать JSON активного варианта.</p>
+                    <button id="confirm-import">Заменить текущий план</button>
+                    <button id="cancel-import" class="secondary-button">Отмена</button>
+                </div>
+            </details>
+            <p id="autosave-status" role="status" aria-live="polite"></p>
+
+            <details class="input-section" id="plot-settings" open>
+                <summary>Участок и границы</summary>
+                <div class="plot-creation-row">
+                    <!-- Блок создания участка -->
+                    <div class="plot-size-controls">
+                        <h3>Размер участка</h3>
+                        <div>
+                            <label for="plot-width">Ширина (м):</label>
+                            <input type="number" id="plot-width" min="0" step="any" value="20" aria-describedby="plot-width-error">
+                            <p id="plot-width-error" class="field-error" role="alert"></p>
+
+                            <label for="plot-length">Длина (м):</label>
+                            <input type="number" id="plot-length" min="0" step="any" value="35" aria-describedby="plot-length-error">
+                            <p id="plot-length-error" class="field-error" role="alert"></p>
+
+                            <button id="create-plot">Создать участок</button>
+                            <p id="plot-summary" role="status"></p>
+                            <button id="new-project" class="secondary-button" hidden>Новый проект</button>
+                            <div id="new-project-confirmation" class="confirmation-panel" hidden>
+                                <p>Новый проект очистит активный вариант; остальные варианты сохранятся. Перед заменой можно скачать его JSON. Размеры нового участка задайте в полях выше.</p>
+                                <button id="confirm-new-project">Создать новый проект</button>
+                                <button id="cancel-new-project" class="secondary-button">Продолжить текущий</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Блок выбора границ (изначально скрыт) -->
+                    <div id="plot-controls" class="plot-borders-controls">
+                        <h3>Границы участка</h3>
+                        <div class="controls">
+                            <div class="control-group">
+                                <h4>Северная сторона</h4>
+                                <select id="north-side">
+                                    <option value="" selected disabled>Выбрать</option>
+                                    <option value="road">Дорога</option>
+                                    <option value="forest">Лес</option>
+                                    <option value="neighbor">Соседний участок</option>
+                                    <option value="ditch">Канава</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <h4>Западная сторона</h4>
+                                <select id="west-side">
+                                    <option value="" selected disabled>Выбрать</option>
+                                    <option value="road">Дорога</option>
+                                    <option value="forest">Лес</option>
+                                    <option value="neighbor">Соседний участок</option>
+                                    <option value="ditch">Канава</option>
+                                </select>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Южная сторона</h4>
+                                <select id="south-side">
+                                    <option value="" selected disabled>Выбрать</option>
+                                    <option value="road">Дорога</option>
+                                    <option value="forest">Лес</option>
+                                    <option value="neighbor">Соседний участок</option>
+                                    <option value="ditch">Канава</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <h4>Восточная сторона</h4>
+                                <select id="east-side">
+                                    <option value="" selected disabled>Выбрать</option>
+                                    <option value="road">Дорога</option>
+                                    <option value="forest">Лес</option>
+                                    <option value="neighbor">Соседний участок</option>
+                                    <option value="ditch">Канава</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="input-section view-settings" id="view-settings">
+                <summary>Вид и сетка</summary>
+                <div class="view-buttons" aria-label="Сдвиг вида">
+                    <button id="pan-left" aria-label="Сдвинуть вид влево">←</button>
+                    <button id="pan-up" aria-label="Сдвинуть вид вверх">↑</button>
+                    <button id="pan-down" aria-label="Сдвинуть вид вниз">↓</button>
+                    <button id="pan-right" aria-label="Сдвинуть вид вправо">→</button>
+                </div>
+                <h3>Сетка и подсказки управления</h3>
+                <label><input id="grid-visible" type="checkbox" checked> Показывать сетку</label>
+                <label><input id="snap-enabled" type="checkbox"> Привязка при переносе</label>
+                <label for="grid-step">Шаг сетки и привязки (м)</label>
+                <input id="grid-step" type="number" min="0.01" max="1000" step="any" value="1" aria-describedby="view-error">
+                <button id="apply-view-settings">Применить настройки сетки</button>
+                <p id="view-error" class="field-error" role="alert"></p>
+                <p>Потяните объект мышью или пальцем. В режиме «Перемещать вид» потяните план. Escape отменяет незавершённое движение. Координаты в свойствах задаются точно, без привязки.</p>
+            </details>
+
 <details class="input-section" id="assessment-panel"><summary>Сведения для проверки правил</summary><p>Для садового участка в РФ. Неизвестные условия не считаются выполненными.</p><label for="assessment-territory">Назначение территории</label><select id="assessment-territory"><option value="unknown">Неизвестно</option><option value="gardening">Территория садоводства</option><option value="other">Другое назначение</option></select>
 <label for="assessment-sewer">Централизованная канализация</label><select id="assessment-sewer"><option value="unknown">Неизвестно</option><option value="yes">Есть</option><option value="no">Нет</option></select>
 <label for="assessment-local-road">Отступ по местному регламенту со стороны УДС (м; пусто — неизвестно)</label><input id="assessment-local-road" type="number" step="any">
@@ -266,23 +265,23 @@
                         <option value="parking">Парковка</option>
                     </select>
                     <p id="building-type-error" class="field-error" role="alert"></p>
-                    
+
                     <div id="building-size-controls" class="building-controls">
                         <label id="building-width-label" for="building-width">Ширина (м):</label>
                         <input type="number" id="building-width" min="0" step="any" value="5" aria-describedby="building-width-error">
                         <p id="building-width-error" class="field-error" role="alert"></p>
-                        
+
                         <label id="building-length-label" for="building-length">Длина (м):</label>
                         <input type="number" id="building-length" min="0" step="any" value="6" aria-describedby="building-length-error">
                         <p id="building-length-error" class="field-error" role="alert"></p>
-                        
+
                         <button id="create-building">Добавить объект</button>
                     </div>
                 </div>
                 </div>
             </details>
         </div>
-        
+
         <div class="right-column">
             <div id="buildings-legend" class="input-section">
                 <h2>Легенда объектов</h2>
@@ -291,7 +290,7 @@
             </div>
         </div>
     </div>
-    
+        <div class="editor-footer">
     <details id="plot-contour-panel" class="input-section">
         <summary>Контур участка: вершины и стороны</summary>
         <p>Введите вершины по порядку обхода. X растёт на восток, Y — на юг; координаты в метрах, от нуля. Соседство, полосы дороги и ваш отступ относятся к стороне от этой вершины до следующей. Последняя сторона замыкается на первую.</p>
@@ -341,6 +340,8 @@
         <h2>Правила и условия размещения</h2>
         <p>Укажите профиль участка, соседство и назначение построек. Каждая проверка содержит расстояние, условия и источник. Если сведения неизвестны, приложение покажет «Недостаточно данных»; несверенный источник не даёт оценки соответствия.</p>
         <p><a href="docs/rules/placement-rules.md" target="_blank" rel="noopener">Реестр источников и применимости</a>. Пожарные расстояния и санитарная безопасность водоснабжения требуют дополнительной сверки. Линии пользовательских ограничений проверяются отдельно от требований документов.</p>
+    </div>
+        </div>
     </div>
 
     <script src="js/catalog.js"></script>
